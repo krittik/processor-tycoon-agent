@@ -65,6 +65,7 @@ internal sealed class AgentAbout
         Stretch(title.rectTransform, 10, 44);
         var close = Fill(Rect("CloseButton", bar.transform), null, null);
         close.color = Color.clear;
+        close.raycastTarget = true;   // the transparent hit area receives the click (Fill turns raycasts off for unpainted images)
         var closeRect = close.rectTransform;
         closeRect.anchorMin = new Vector2(1, 0); closeRect.anchorMax = new Vector2(1, 1); closeRect.pivot = new Vector2(1, .5f);
         closeRect.sizeDelta = new Vector2(40, 0); closeRect.anchoredPosition = Vector2.zero;
