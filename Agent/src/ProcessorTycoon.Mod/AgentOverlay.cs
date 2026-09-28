@@ -22,7 +22,7 @@ internal sealed class AgentOverlay : IDisposable
     private Canvas? nativeCanvas;
     private readonly RectTransform tray;
     private readonly RectTransform panel;
-    private readonly RectTransform about;
+    private readonly AgentAbout about;
     private readonly List<Image> headerSurfaces = new();
     private readonly TextMeshProUGUI status;
     private readonly TextMeshProUGUI pause;
@@ -131,8 +131,7 @@ internal sealed class AgentOverlay : IDisposable
         var aboutLink = LinkButton(panel, $"{AgentInfo.Short}  ·  About and credits", 10, 150, 260, ToggleAbout);
         aboutLink.alignment = TextAlignmentOptions.MidlineLeft;
         panel.gameObject.SetActive(false);
-        about = BuildAbout();
-        about.gameObject.SetActive(false);
+        about = new AgentAbout(root.transform, font, icons["connection"], icons["close"]);
 
         for (var index = 0; index < rows.Length; index++)
         {
@@ -155,57 +154,8 @@ internal sealed class AgentOverlay : IDisposable
     }
 
     public void TogglePanel() => SetPanel(!panel.gameObject.activeSelf);
-    public void ToggleAbout() => SetAbout(!about.gameObject.activeSelf);
-    public void SetAbout(bool visible) { about.gameObject.SetActive(visible); if (visible) about.SetAsLastSibling(); }
-
-    private RectTransform BuildAbout()
-    {
-        const float width = 460;
-        var window = Rect("Agent about", root.transform, width, 300);
-        window.anchorMin = window.anchorMax = window.pivot = new Vector2(.5f, .5f);
-        window.anchoredPosition = Vector2.zero;
-        surfaces.Add(Background(window, new Color(.96f, .96f, .96f)));
-        var border = window.gameObject.AddComponent<Outline>();
-        border.effectColor = new Color(.15f, .15f, .15f, .7f);
-        border.effectDistance = new Vector2(1, -1);
-        var header = Rect("Title bar", window, width, 28);
-        Top(header, 0, 0);
-        surfaces.Add(Background(header, new Color(.86f, .87f, .88f)));
-        headerSurfaces.Add(surfaces[surfaces.Count - 1]);
-        var title = PanelText(header, "About " + AgentInfo.Name, 16);
-        title.alignment = TextAlignmentOptions.MidlineLeft;
-        Stretch(title.rectTransform, 10, 36);
-        var close = MakeButton(header, 24, 24, width - 26, 2, "", ToggleAbout);
-        Icon(close.transform, "close", Vector2.zero, 12, true);
-
-        var y = 38f;
-        TextMeshProUGUI Line(string text, float size, float lineHeight, bool wrap = false)
-        {
-            var label = PanelText(window, text, size);
-            label.alignment = TextAlignmentOptions.TopLeft;
-            if (wrap) { label.textWrappingMode = TextWrappingModes.Normal; label.overflowMode = TextOverflowModes.Overflow; }
-            // Wrapped lines take the height they need (a long credit wraps onto a second line).
-            if (wrap) lineHeight = Mathf.Max(lineHeight, Mathf.Ceil(label.GetPreferredValues(text, width - 28, 0).y) + 4);
-            Position(label.rectTransform, 14, y, width - 28, lineHeight);
-            y += lineHeight;
-            return label;
-        }
-        Line($"<b>{AgentInfo.Name}</b>  {AgentInfo.Short}", 17, 26);
-        Line("Lets AI agents and scripts play through the visible game with native player actions, and shows what they do.", 14, 40, wrap: true);
-        var byline = Line(AgentInfo.Byline((name, url) => $"<link=\"{url}\"><u>{name}</u></link>"), 14, 22, wrap: true);
-        byline.raycastTarget = true;
-        byline.gameObject.AddComponent<TextLinks>();
-        y += 6;
-        Line("Uses " + string.Join(", ", AgentInfo.ThirdParty.Select(t => $"{t.name} ({t.note})")) + $". Released under the {AgentInfo.License} license.", 12, 36, wrap: true);
-        Line(AgentInfo.Disclaimer, 12, 36, wrap: true);
-        y += 6;
-        MakeButton(window, 130, 30, width - 14 - 80 - 8 - 84 - 8 - 84 - 8 - 130, y, "Report an issue", () => Application.OpenURL(AgentInfo.Issues));
-        MakeButton(window, 84, 30, width - 14 - 80 - 8 - 84 - 8 - 84, y, "Discord", () => Application.OpenURL(AgentInfo.Discord));
-        MakeButton(window, 84, 30, width - 14 - 80 - 8 - 84, y, "GitHub", () => Application.OpenURL(AgentInfo.Repository));
-        MakeButton(window, 80, 30, width - 14 - 80, y, "Close", ToggleAbout);
-        window.sizeDelta = new Vector2(width, y + 30 + 12);
-        return window;
-    }
+    public void ToggleAbout() => SetAbout(!about.Visible);
+    public void SetAbout(bool visible) => about.SetVisible(visible);
 
     private TextMeshProUGUI LinkButton(Transform parent, string text, float x, float y, float width, Action action)
     {
@@ -324,7 +274,7 @@ internal sealed class AgentOverlay : IDisposable
             var target = button.GetComponent<Image>();
             target.color = dark ? new Color(.28f, .28f, .28f) : Color.white;
         }
-        foreach (var image in panel.GetComponentsInChildren<Image>(true).Concat(about.GetComponentsInChildren<Image>(true)).Where(i => i.name == "Icon")) image.color = dark ? new Color(.88f, .88f, .88f) : new Color(.2f, .2f, .2f);
+        foreach (var image in panel.GetComponentsInChildren<Image>(true).Where(i => i.name == "Icon")) image.color = dark ? new Color(.88f, .88f, .88f) : new Color(.2f, .2f, .2f);
         status.color = new Color(.78f, .8f, .82f);
         connection.color = status.color;
     }
@@ -393,17 +343,6 @@ internal sealed class AgentOverlay : IDisposable
     private static void Top(RectTransform rect, float x, float y) { rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1); rect.anchoredPosition = new Vector2(x, -y); }
     private static void Position(RectTransform rect, float x, float y, float width, float height) { Top(rect, x, y); rect.sizeDelta = new Vector2(width, height); }
     private static void Stretch(RectTransform rect, float left, float right) { rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = new Vector2(left, 0); rect.offsetMax = new Vector2(-right, 0); }
-    // Opens the web page of a clicked <link="url"> in a text.
-    private sealed class TextLinks : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
-    {
-        public void OnPointerClick(UnityEngine.EventSystems.PointerEventData data)
-        {
-            var text = GetComponent<TMP_Text>();
-            var index = TMP_TextUtilities.FindIntersectingLink(text, data.position, null);
-            if (index >= 0) Application.OpenURL(text.textInfo.linkInfo[index].GetLinkID());
-        }
-    }
-
     public void Dispose()
     {
         Object.Destroy(root);
