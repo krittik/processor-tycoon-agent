@@ -24,9 +24,9 @@ An unofficial fan mod for game version **0.2.16a5**. Not affiliated with or endo
 
 Prerequisites: Windows x64, .NET SDK 9, Processor Tycoon 0.2.16a5 with BepInEx 5 installed.
 
-Clone into a short folder, for example the game folder as `Dev`: Windows limits paths to 260 characters, and a deeply nested clone or build fails with "Filename too long".
+Clone into a short folder, for example `<game>\Dev\<repository>`: Windows limits paths to 260 characters, and a deeply nested clone or build fails with "Filename too long".
 
-The projects compile against the game's own assemblies, which are never part of this repository. The game folder is resolved in this order: `-GameDir <path>` (scripts) or `-p:GameDir=<path>` (`dotnet build`); the environment variable `PT_GAME_DIR`; the repository's parent folder (clone it as `<game>/Dev`).
+The projects compile against the game's own assemblies, which are never part of this repository. The game folder is resolved in this order: `-GameDir <path>` (scripts) or `-p:GameDir=<path>` (`dotnet build`); the environment variable `PT_GAME_DIR`; the folder containing the repository or the one above it (so `<game>\Dev\<repository>` needs no setting).
 
 ```powershell
 cd Agent

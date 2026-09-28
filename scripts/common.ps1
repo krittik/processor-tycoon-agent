@@ -2,9 +2,10 @@
 $RepoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $ArtifactsDir = Join-Path $RepoRoot 'artifacts'
 
-# Game folder: explicit value > PT_GAME_DIR > the folder containing this repository (same rule as Directory.Build.props).
+# Game folder: explicit value > PT_GAME_DIR > the folder containing this repository or the one above it (same rule as Directory.Build.props).
 function Resolve-GameDir([string]$GameDir) {
     if (-not $GameDir) { $GameDir = $env:PT_GAME_DIR }
+    if (-not $GameDir) { $GameDir = @('..', '..\..') | ForEach-Object { Join-Path $RepoRoot $_ } | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'Processor Tycoon Beta.exe') } | Select-Object -First 1 }
     if (-not $GameDir) { $GameDir = Join-Path $RepoRoot '..' }
     $full = [IO.Path]::GetFullPath($GameDir)
     if (-not (Test-Path -LiteralPath (Join-Path $full 'Processor Tycoon Beta.exe'))) { throw "Processor Tycoon not found at '$full'. Set PT_GAME_DIR or pass -GameDir." }
