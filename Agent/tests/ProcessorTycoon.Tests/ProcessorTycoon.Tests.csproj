@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline unit tests for the CLI's pure logic: display-number parsing, line accounting, market diffing, price checks.
+       Dependency-free runner: dotnet run with this project; exit code 0 means all passed. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ProcessorTycoon.Cli\ProcessorTycoon.Cli.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+# Build outputs
+**/bin/
+**/obj/
+# Packages, archived builds, testbeds, decompiled game code — never commit
+/artifacts/
+/reference/decomp/
+# Local evidence and screenshots from live game runs
+**/runtime/
+**/node_modules/
+# IDE / user files
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Build-time SVG rasterizer; no Node dependency in the game mod",
+  "scripts": { "icons": "node render-icons.cjs" },
+  "devDependencies": { "@resvg/resvg-js": "2.6.2" }
+}
