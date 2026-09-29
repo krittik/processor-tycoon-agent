@@ -1,5 +1,9 @@
 # Changelog — Processor Tycoon Mod API
 
+## 0.3.2 — 2026-09-29
+
+- `Feed`: a long message in the input line wraps and the line grows upward (up to five lines) instead of scrolling its start out of view; Enter still sends.
+
 ## 0.3.1 — 2026-09-29
 
 - `Feed`: the history opens from the input line or a `FocusOn` element (the lines only in a feed with neither), no longer when the pointer passes over the lines: they may lie on a game window or the Pause Menu, which the backdrop then covered.
