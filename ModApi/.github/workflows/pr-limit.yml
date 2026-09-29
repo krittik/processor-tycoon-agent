@@ -1,0 +1,30 @@
+# Keeps reviews manageable: a contributor may have at most MAX_OPEN open pull requests; extra ones are closed with a note.
+# Maintainers (owner, members, collaborators) are exempt. Runs on pull_request_target without checking out PR code.
+name: Open pull request limit
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  limit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          MAX_OPEN: "2"
+        with:
+          script: |
+            const max = Number(process.env.MAX_OPEN);
+            const pr = context.payload.pull_request;
+            if (['OWNER', 'MEMBER', 'COLLABORATOR'].includes(pr.author_association)) return;
+            const open = await github.paginate(github.rest.pulls.list, { ...context.repo, state: 'open', per_page: 100 });
+            const mine = open.filter(p => p.user.login === pr.user.login);
+            if (mine.length <= max) return;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: pr.number,
+              body: `Thanks for the contribution! Each contributor can have at most ${max} open pull requests at a time, so this one was closed. Please reopen it once one of your other pull requests is merged or closed.` });
+            await github.rest.pulls.update({ ...context.repo, pull_number: pr.number, state: 'closed' });
