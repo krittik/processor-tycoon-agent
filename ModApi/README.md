@@ -1,6 +1,6 @@
 # Processor Tycoon Mod API
 
-Building blocks for Processor Tycoon mods that look and behave like the game itself: native-looking windows and controls in the current theme (light or dark), tooltips, a bottom-bar entry, a fading on-screen feed with an optional input line, an About window with credits, a main-menu entry, custom emails with answer buttons and the game's notifications.
+Building blocks for Processor Tycoon mods that look and behave like the game itself: native-looking windows and controls in the current theme (light or dark), tooltips, a bottom-bar entry, a fading on-screen feed with an optional input line, an About window with credits, a main-menu entry, badges on the game's own texts, an action pointer, bug-report zips, custom emails with answer buttons and the game's notifications, plus a UI dump for finding the game's styles.
 
 An unofficial modding library for game version **0.2.16a5**, used by [Processor Tycoon Multiplayer](https://github.com/krittik/processor-tycoon-multiplayer) and [Processor Tycoon Agent](https://github.com/krittik/processor-tycoon-agent). Not affiliated with or endorsed by the game's developers; it contains none of the game's files.
 
@@ -18,7 +18,7 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 2. Compile it into your plugin project:
 
    ```xml
-   <!-- UI layer only: needs UnityEngine, UnityEngine.UI and Unity.TextMeshPro, no game assembly -->
+   <!-- UI layer only: needs UnityEngine, UnityEngine.UI, Unity.TextMeshPro and BepInEx, no game assembly -->
    <Compile Include="..\..\ModApi\src\Ui\**\*.cs" Link="ModApi\%(RecursiveDir)%(Filename)%(Extension)" />
    <!-- Game layer too (emails, notifications): also needs Assembly-CSharp with Publicize="true"
         (BepInEx.AssemblyPublicizer.MSBuild) and HarmonyX (BepInEx.Core) -->
@@ -43,6 +43,11 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 | `Credits`, `AboutWindow` | A mod's About window: name, version, license, GitHub and Discord links, description, credits with links and marks, what it is built with, disclaimer, Report an issue. |
 | `MenuEntry` | An entry in the main menu (a copy of the game's Settings item); `MenuEntry.Press("New Game")` presses a native one. |
 | `Marks` | Icons drawn in code: the Claude mark for credits, an envelope. |
+| `Sprites` | Sprites from a mod's own PNGs (embedded resources or bytes). |
+| `TextBadge` | A small icon right after a text the game draws (it follows the text), without changing the text. |
+| `ActionPointer` | A decorative second pointer with a label that glides to where automation acts and pulses on clicks. |
+| `BugReport` | A zip with the BepInEx log and a mod's files, and a window with Open folder / Report an issue. |
+| `UiDump` | For modders: writes a UI hierarchy with sizes, sprites, colours, fonts and components, to copy the game's exact styles. |
 
 **Game layer** (`src/Game`, namespace `ProcessorTycoonModApi.Game`).
 
@@ -50,6 +55,7 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 |---|---|
 | `Mail` | Your own emails in the game's Email app: title, sender line, rich-text body, up to two answers on the Email window's own Accept and Decline buttons; posting again updates a letter and brings it to the top. Letters are kept out of saves (a save keeps only an email's ID and date and would load them back empty) and `Clear()` removes them. Set `Mail.Owner` once. |
 | `Notify` | The game's notification popup (message, second line, duration). |
+| `NativeTooltip` | The game's own tooltip on something in the game's UI (a `TextBadge`, for example). |
 
 ## Conventions
 
