@@ -7,8 +7,8 @@ using UnityEngine;
 namespace ProcessorTycoonMod;
 
 // The mod's own layer above the game, built with the Processor Tycoon Mod API: the bottom-bar item ("Agent · Connected"),
-// which opens the Agent window docked above it, the About window, the action feed at the bottom right (it fades; hover it
-// or the bottom-bar entry to read the history, the mouse wheel scrolls back) and the decorative action pointer. Nothing here blocks agent commands.
+// which opens the Agent window docked above it, the About window, the action feed at the bottom right (it fades; hover the
+// bottom-bar entry to read the history, the mouse wheel scrolls back) and the decorative action pointer. Nothing here blocks agent commands.
 internal sealed class AgentOverlay : IDisposable
 {
     private readonly Plugin plugin;
