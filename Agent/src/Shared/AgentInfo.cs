@@ -1,9 +1,7 @@
-using System;
-using System.Linq;
-
 namespace ProcessorTycoonShared;
 
-// Release identity, shared by the plugin (Agent window footer and About window) and the CLI (help and status).
+// Release identity, shared by the plugin (Agent window footer and About window) and the CLI (help and status). The About
+// window builds its credits from these (Mod API Credits).
 internal static class AgentInfo
 {
     public const string Name = "Processor Tycoon Agent";
@@ -23,13 +21,7 @@ internal static class AgentInfo
     public const string ClaudeUrl = "https://claude.com/claude-code";
     public static readonly (string name, string url)[] Collaborators = { ("Claude Code", ClaudeUrl) };
 
-    // "By Critique (Sevastyanoff), in collaboration with Claude Code.", each name wrapped by link(name, url).
-    public static string Byline(Func<string, string, string> link) => $"By {link(Keep(Author), AuthorUrl)}, in collaboration with {string.Join(", ", Collaborators.Select(c => link(Keep(c.name), c.url)))}.";
-    private static string Keep(string name) => name.Replace(' ', (char)0xA0);   // a linked name never wraps inside
-
     public static readonly (string name, string license)[] ThirdParty = { ("BepInEx", "LGPL-2.1"), ("Newtonsoft.Json", "MIT") };
-    public static string BuiltWith => "Built with " + string.Join(", ", ThirdParty.Take(ThirdParty.Length - 1).Select(Part)) + " and " + Part(ThirdParty.Last()) + ".";
-    private static string Part((string name, string license) p) => $"{p.name} ({p.license})";
 
     public const string Disclaimer = "Unofficial fan mod. Processor Tycoon belongs to its developers; this mod is not affiliated with or endorsed by them and ships none of the game's files.";
 }

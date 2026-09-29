@@ -42,4 +42,4 @@ More in [Agent/README.md](Agent/README.md); the API contract is [Agent/API_CONTR
 
 Questions, ideas and play sessions: [Discord](https://discord.gg/YKdTjge7J2). Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Released under the [MIT license](LICENSE).
 
-By [Critique (Sevastyanoff)](https://discord.gg/YKdTjge7J2), in collaboration with [Claude Code](https://claude.com/claude-code) (Anthropic). Uses BepInEx (LGPL-2.1) and Newtonsoft.Json (MIT).
+By [Critique (Sevastyanoff)](https://discord.gg/YKdTjge7J2), in collaboration with [Claude Code](https://claude.com/claude-code) (Anthropic). Uses BepInEx (LGPL-2.1), Newtonsoft.Json (MIT) and the [Processor Tycoon Mod API](https://github.com/krittik/processor-tycoon-mod-api) (MIT, vendored in `ModApi/`).

@@ -6,6 +6,8 @@ For PLAYING rather than developing: use `./pt-agent.cmd --help`, then `status`. 
 
 ## Rules
 
+- `../ModApi/` is the vendored [Processor Tycoon Mod API](https://github.com/krittik/processor-tycoon-mod-api) (git subtree); only its UI layer is compiled in. Change it in that repository, then `git subtree pull --prefix ModApi https://github.com/krittik/processor-tycoon-mod-api main --squash`; never edit `ModApi/` in place.
+
 - The mod plays like a human: use native player actions and player-visible data. No arbitrary reflection or hidden game-state access; report unsupported or mismatched UI honestly instead of guessing.
 - Keep version-sensitive UI mappings isolated in the game modules. Preserve game files and the player's saves.
 - CLI users cannot be assumed to have this file: explain method selection, differences and use cases in the CLI help and `AGENT_GUIDE.md` (embedded in the CLI). Do not advertise planned commands as shipped ([API_CONTRACT.md](API_CONTRACT.md), [API_COVERAGE_PLAN.md](API_COVERAGE_PLAN.md)).

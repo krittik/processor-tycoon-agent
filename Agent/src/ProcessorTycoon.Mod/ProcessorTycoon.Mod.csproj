@@ -10,6 +10,9 @@
     <RestoreAdditionalProjectSources>https://api.nuget.org/v3/index.json;https://nuget.bepinex.dev/v3/index.json;https://nuget.samboy.dev/v3/index.json</RestoreAdditionalProjectSources>
     <RequiresGame>true</RequiresGame>
     <PluginDir>$(GameDir)\BepInEx\plugins\ProcessorTycoon.Mod</PluginDir>
+    <!-- Processor Tycoon Mod API: its source is vendored into ModApi/ (git subtree); only its UI layer is compiled in,
+         which needs no game assembly (this mod never references Assembly-CSharp). -->
+    <ModApiDir Condition="'$(ModApiDir)' == ''">$(RepoRoot)ModApi\</ModApiDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,6 +33,7 @@
       <Private>false</Private>
     </Reference>
     <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+    <Compile Include="$(ModApiDir)src\Ui\**\*.cs" Link="ModApi\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\AGENT_GUIDE.md" LogicalName="AgentGuide" />
     <EmbeddedResource Include="..\..\assets\icons\*.png" LogicalName="Icons.%(Filename)%(Extension)" />
   </ItemGroup>
