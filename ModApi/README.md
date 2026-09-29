@@ -39,7 +39,7 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 | `Tip` | Tooltips drawn like the game's, on the same canvas as the control. |
 | `Window` | A window like the game's: title bar with close, body, footer strip (`Footer(version, openAbout)`), dragging, click to front, docking above a bottom-bar entry (`ShowAbove`). |
 | `BarItem` | An entry in the bottom bar (icon and text). Entries of every mod line up by their `order` without overlapping. |
-| `Feed` | Transparent lines in a bottom corner that fade out; hovering focuses them (history on a backdrop, mouse wheel scrolls back); an optional input line opens with Enter or `OpenInput` (chat). |
+| `Feed` | Transparent lines in a bottom corner that fade out; hovering focuses them (history on a backdrop, the mouse wheel scrolls back, a thin bar shows where), also from another element (`FocusOn`, a bottom-bar entry). An optional input line (chat): shown while typing (Enter or `OpenInput`) or always (`InputAlwaysVisible`, dim with `IdleHint`). |
 | `Credits`, `AboutWindow` | A mod's About window: name, version, license, GitHub and Discord links, description, credits with links and marks, what it is built with, disclaimer, Report an issue. |
 | `MenuEntry` | An entry in the main menu (a copy of the game's Settings item); `MenuEntry.Press("New Game")` presses a native one. |
 | `Marks` | Icons drawn in code: the Claude mark for credits, an envelope. |

@@ -1,5 +1,9 @@
 # Changelog — Processor Tycoon Mod API
 
+## 0.3.0 — 2026-09-29
+
+- `Feed`: `InputAlwaysVisible` keeps the input line on screen below the lines (dim, with `IdleHint`; a click or Enter starts typing); `FocusOn(rect)` lets another element (a bottom-bar entry) open the history on hover, so it stays reachable after every line has faded; `ScrollBy`, and Page Up / Page Down while typing; a thin bar shows the scroll position; a reader scrolled back keeps their place when new lines arrive; the history backdrop is darker, readable over desktop icons. `InputOpen` is now `Typing`.
+
 ## 0.2.0 — 2026-09-29
 
 - `TextBadge`: an icon after a text the game draws, following it; `NativeTooltip` (game layer): the game's own tooltip on it.
