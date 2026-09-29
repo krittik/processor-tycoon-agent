@@ -9,9 +9,10 @@ using UnityEngine.UI;
 namespace ProcessorTycoonModApi;
 
 // Transparent lines in a bottom corner of the screen, like the Agent mod's action feed (bottom right) or a chat (bottom
-// left). New lines fade out after Lifetime seconds. Hovering the feed, or typing, focuses it: the history on a dark
-// backdrop, the mouse wheel (or Page Up / Page Down while typing) scrolls back, and a thin bar shows where. FocusOn adds another element that focuses it on hover
-// (a bottom-bar entry), so the history stays reachable after every line has faded.
+// left). New lines fade out after Lifetime seconds. Hovering the input line or a FocusOn element (a bottom-bar entry; the
+// lines themselves only in a feed with neither), or typing, focuses it: the history on a dark backdrop, the mouse wheel (or
+// Page Up / Page Down while typing) scrolls back, and a thin bar shows where. Passing over the lines does not focus it, so a
+// game window under them stays usable; hide the feed (Enabled) while the game shows a screen there (GameScreen).
 // An optional input line (chat) at the bottom: InputAlwaysVisible keeps it on screen (dim, showing IdleHint) and a click
 // or Enter starts typing; otherwise it appears only while typing (Enter with EnterOpens, or OpenInput). Submitted gets the
 // text. The lines never block clicks on the game; only the input line takes clicks and, while typing, the keyboard (the game
@@ -35,7 +36,7 @@ internal sealed class Feed
     private readonly string placeholder;
     private readonly Vector3[] corners = new Vector3[4];
     private Rect zone;
-    private bool typing;
+    private bool typing, focused;
     private float targetHoverSince = -1;
     private int scroll, openFrame = -1, activeFrame = -1, deselectFrame = -1, closedFrame = -10;
 
@@ -184,7 +185,7 @@ internal sealed class Feed
     {
         var frame = Time.frameCount;
         if (deselectFrame == frame && EventSystem.current != null && EventSystem.current.currentSelectedGameObject == input.gameObject) EventSystem.current.SetSelectedGameObject(null);
-        if (!Enabled) { if (typing || openFrame >= 0) CloseInput(); panel.gameObject.SetActive(false); targetHoverSince = -1; return; }
+        if (!Enabled) { if (typing || openFrame >= 0) CloseInput(); panel.gameObject.SetActive(false); targetHoverSince = -1; focused = false; return; }
         if (!panel.gameObject.activeSelf) panel.gameObject.SetActive(true);
         if (openFrame == frame) Activate();
         // A click into the visible input line.
@@ -232,8 +233,15 @@ internal sealed class Feed
     {
         var now = Time.unscaledTime;
         var mouse = overlay.Mouse;
-        var hovered = (zone.width > 0 && zone.Contains(mouse)) | TargetHovered(mouse);
+        var width = Mathf.Clamp(overlay.Width - 40, 250, MaxWidth);
+        var origin = RightSide ? new Vector2(overlay.Width - Side - width, Bottom) : new Vector2(Side, Bottom);
+        var withInput = InputAlwaysVisible || typing;
+        // Focus starts on the input line or a FocusOn element (on the lines only for a feed with neither), never by passing
+        // over lines that may lie on a game window; once focused, the whole history area keeps it.
+        var hovered = TargetHovered(mouse) || focused && zone.Contains(mouse)
+            || (withInput ? new Rect(origin, new Vector2(width, InputHeight)).Contains(mouse) : focusTargets.Count == 0 && zone.Contains(mouse));
         var focus = typing || hovered;
+        focused = focus;
         var maxScroll = Mathf.Max(0, entries.Count - FocusLines);
         if (hovered)
         {
@@ -244,8 +252,6 @@ internal sealed class Feed
         var shown = focus
             ? entries.Take(entries.Count - scroll).Reverse().Take(FocusLines).ToList()
             : entries.Where(e => now - e.Time < Lifetime).Reverse().Take(IdleLines).ToList();
-        var width = Mathf.Clamp(overlay.Width - 40, 250, MaxWidth);
-        var withInput = InputAlwaysVisible || typing;
         if (inputRow.gameObject.activeSelf != withInput) inputRow.gameObject.SetActive(withInput);
         var y = withInput ? InputHeight + 4 : 0f;
         var linesBottom = y;
@@ -311,7 +317,6 @@ internal sealed class Feed
             bar.anchoredPosition = new Vector2(RightSide ? left - 5 : contentWidth + 2, linesBottom + (track - bar.sizeDelta.y) * scroll / maxScroll);
         }
         var any = shown.Count > 0 || withInput;
-        var origin = RightSide ? new Vector2(overlay.Width - Side - width, Bottom) : new Vector2(Side, Bottom);
         zone = any ? new Rect(origin.x + left - 8, origin.y - 6, contentWidth + 16, y + 10) : default;
     }
 }

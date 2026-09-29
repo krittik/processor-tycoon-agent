@@ -39,7 +39,7 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 | `Tip` | Tooltips drawn like the game's, on the same canvas as the control. |
 | `Window` | A window like the game's: title bar with close, body, footer strip (`Footer(version, openAbout)`), dragging, click to front, docking above a bottom-bar entry (`ShowAbove`). |
 | `BarItem` | An entry in the bottom bar (icon and text). Entries of every mod line up by their `order` without overlapping. |
-| `Feed` | Transparent lines in a bottom corner that fade out; hovering focuses them (history on a backdrop, the mouse wheel scrolls back, a thin bar shows where), also from another element (`FocusOn`, a bottom-bar entry). An optional input line (chat): shown while typing (Enter or `OpenInput`) or always (`InputAlwaysVisible`, dim with `IdleHint`). |
+| `Feed` | Transparent lines in a bottom corner that fade out. Hovering the input line or another element (`FocusOn`, a bottom-bar entry) shows the history on a backdrop (the mouse wheel scrolls back, a thin bar shows where); passing over the lines never covers the game's windows under them. An optional input line (chat): shown while typing (Enter or `OpenInput`) or always (`InputAlwaysVisible`, dim with `IdleHint`). |
 | `Credits`, `AboutWindow` | A mod's About window: name, version, license, GitHub and Discord links, description, credits with links and marks, what it is built with, disclaimer, Report an issue. |
 | `MenuEntry` | An entry in the main menu (a copy of the game's Settings item); `MenuEntry.Press("New Game")` presses a native one. |
 | `Marks` | Icons drawn in code: the Claude mark for credits, an envelope. |
@@ -56,6 +56,7 @@ The API ships no assembly: a mod **compiles its source in**, so players install 
 | `Mail` | Your own emails in the game's Email app: title, sender line, rich-text body, up to two answers on the Email window's own Accept and Decline buttons; posting again updates a letter and brings it to the top. Letters are kept out of saves (a save keeps only an email's ID and date and would load them back empty) and `Clear()` removes them. Set `Mail.Owner` once. |
 | `Notify` | The game's notification popup (message, second line, duration). |
 | `NativeTooltip` | The game's own tooltip on something in the game's UI (a `TextBadge`, for example). |
+| `GameScreen` | The game's screens an overlay should step aside for: `PauseMenuOpen` (it covers the left side). |
 
 ## Conventions
 
