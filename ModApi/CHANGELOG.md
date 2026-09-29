@@ -1,5 +1,10 @@
 # Changelog — Processor Tycoon Mod API
 
+## 0.3.1 — 2026-09-29
+
+- `Feed`: the history opens from the input line or a `FocusOn` element (the lines only in a feed with neither), no longer when the pointer passes over the lines: they may lie on a game window or the Pause Menu, which the backdrop then covered.
+- `GameScreen.PauseMenuOpen` (game layer): hide an overlay while the Pause Menu covers the left side of the screen.
+
 ## 0.3.0 — 2026-09-29
 
 - `Feed`: `InputAlwaysVisible` keeps the input line on screen below the lines (dim, with `IdleHint`; a click or Enter starts typing); `FocusOn(rect)` lets another element (a bottom-bar entry) open the history on hover, so it stays reachable after every line has faded; `ScrollBy`, and Page Up / Page Down while typing; a thin bar shows the scroll position; a reader scrolled back keeps their place when new lines arrive; the history backdrop is darker, readable over desktop icons. `InputOpen` is now `Typing`.
