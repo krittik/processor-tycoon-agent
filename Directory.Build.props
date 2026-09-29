@@ -1,0 +1,17 @@
+<Project>
+  <!-- Shared by every project in this repository. The repository is portable: it does not need to live inside the game folder.
+       Game folder resolution: -p:GameDir=... > environment variable PT_GAME_DIR > the folder containing this repository, or the
+       one above it (for example <game>/Dev/<repository>). -->
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <GameDir Condition="'$(GameDir)' == ''">$(PT_GAME_DIR)</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' and Exists('$(RepoRoot)..\Processor Tycoon Beta.exe')">$([System.IO.Path]::GetFullPath('$(RepoRoot)..'))</GameDir>
+    <GameDir Condition="'$(GameDir)' == '' and Exists('$(RepoRoot)..\..\Processor Tycoon Beta.exe')">$([System.IO.Path]::GetFullPath('$(RepoRoot)..\..'))</GameDir>
+    <GameManagedDir>$(GameDir)\Processor Tycoon Beta_Data\Managed</GameManagedDir>
+  </PropertyGroup>
+
+  <!-- Projects that compile against game assemblies set <RequiresGame>true</RequiresGame>. -->
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="'$(RequiresGame)' == 'true' and !Exists('$(GameManagedDir)\Assembly-CSharp.dll')">
+    <Error Text="Processor Tycoon not found (GameDir='$(GameDir)'). Set PT_GAME_DIR or pass -p:GameDir=... pointing at the folder containing 'Processor Tycoon Beta.exe'." />
+  </Target>
+</Project>

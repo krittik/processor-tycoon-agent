@@ -1,0 +1,8 @@
+# Build outputs
+**/bin/
+**/obj/
+# IDE / user files
+.vs/
+.idea/
+.vscode/
+*.user
