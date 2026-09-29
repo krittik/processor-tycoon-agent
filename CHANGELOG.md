@@ -1,5 +1,12 @@
 # Changelog — Processor Tycoon Mod API
 
+## 0.2.0 — 2026-09-29
+
+- `TextBadge`: an icon after a text the game draws, following it; `NativeTooltip` (game layer): the game's own tooltip on it.
+- `ActionPointer`: the decorative pointer that shows where automation acts (from the Agent mod), with any label.
+- `BugReport`: the diagnostics zip and its window (from the Multiplayer mod), for any mod's files.
+- `Sprites`: sprites from embedded PNGs. `UiDump`: the UI hierarchy dump used to match the game's styles.
+
 ## 0.1.0 — 2026-09-29
 
 First version, extracted from the Multiplayer and Agent mods so both share one implementation.
