@@ -70,7 +70,7 @@ internal sealed class AgentSettings
     private void CopyPrompt()
     {
         var cli = System.IO.Path.Combine(BepInEx.Paths.GameRootPath, "tools", "pt-agent.exe");
-        GUIUtility.systemCopyBuffer = $"Play Processor Tycoon on my PC through its command-line tool:\n\"{cli}\"\n\nFirst run it with \"prompt\" and read that whole game brief and its rules before playing; run it again after any context compaction. Then start with --help and status; \"guide\" lists every command.\n\nMy goal: ";
+        GUIUtility.systemCopyBuffer = $"Play Processor Tycoon on my PC through its command-line tool:\n\"{cli}\"\n\nFirst run it with \"prompt\" and read that whole game brief and its rules before playing; run it again after any context compaction. Then start with --help and status; \"guide\" lists every command.\n\nIf I leave the goal below empty, learn the game and the CLI first, then ask me what I want (for example a new game or one of my saves, the difficulty, what counts as success) before you start, load or change anything.\n\nMy goal: ";
         copiedUntil = Time.unscaledTime + 2.5f;
         Refresh();
     }
