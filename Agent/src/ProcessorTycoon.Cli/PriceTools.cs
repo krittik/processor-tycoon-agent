@@ -292,7 +292,7 @@ internal static class PriceTools
         var list = LoadHistory()["products"]?[target]?.AsArray().OfType<JsonObject>().ToList() ?? new();
         if (list.Count < steps) return Error("no_history", $"Only {list.Count} recorded CLI price change(s) for '{target}'. Nothing was changed.");
         var entry = list[list.Count - steps];
-        if (CliReads.Num(entry["from"]) is not double previous) return Error("no_history", $"The recorded change on {entry["date"]} has no known previous price (the sales sheet could not be read then, or it was recorded by CLI 0.4.0 with --skip-checks). Nothing was changed; set the price explicitly with product-price.");
+        if (CliReads.Num(entry["from"]) is not double previous) return Error("no_history", $"The recorded change on {entry["date"]} has no known previous price (the sales sheet could not be read then, or the price change skipped its checks). Nothing was changed; set the price explicitly with product-price.");
         var parameters = new JsonObject { ["price"] = (int)previous };
         foreach (var key in new[] { "dryRun", "skipChecks" }) if (options[key] != null) parameters[key] = options[key]!.DeepClone();
         var result = await Price(client, new JsonObject { ["target"] = target, ["parameters"] = parameters }, timeout, "price-revert");

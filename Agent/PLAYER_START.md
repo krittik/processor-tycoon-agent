@@ -1,6 +1,6 @@
 # Play with an agent
 
-The Agentic mod lets a local AI agent play Processor Tycoon through a CLI while you watch the real game. It does not include an AI model or connect to a provider on your behalf. Your agent needs permission to run local commands (for example, a local Codex task).
+The Agentic mod lets a local AI agent play Processor Tycoon through a CLI while you watch the real game. It does not include an AI model or connect to a provider on your behalf. Your agent needs permission to run local commands (for example a coding agent such as Claude Code or Codex).
 
 ## Install
 
