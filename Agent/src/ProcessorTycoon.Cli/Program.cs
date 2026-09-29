@@ -42,7 +42,7 @@ static async Task<int> Run(string[] args)
           pt-agent game product-price NAME --price P --dry-run   Pre-commit warnings (drop --dry-run to commit); price-history / price-revert NAME.
           pt-agent game plan-apply --file plan.json [--dry-run]   Several line/price changes with readback (lines: N, max or add).
           pt-agent game monthly-digest | cleanup-preview | research-funding-compare --funding-percents 25,50,100
-          pt-agent mp status | host [PORT] | join IP:PORT | resume [SESSION] | leave | chat TEXT   Multiplayer mod (if installed).
+          pt-agent mp status | host [PORT] | join IP:PORT | resume [SESSION] | leave | chat TEXT | chat-read   Multiplayer mod (if installed).
 
         First read status.game.state and status.game.next:
           not_running -> launch; main_menu -> game session-new-preview OR game save-list / save-load.
@@ -230,7 +230,9 @@ static async Task<int> Run(string[] args)
         return 1;
     }
     if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || uri.Scheme != "http" || !uri.IsLoopback) throw new ArgumentException("Endpoint must be a loopback HTTP URL.");
-    AgentPrompt.PrintOnce(await GameHost.Status(options.GetValueOrDefault("endpoint"), options.GetValueOrDefault("session", "local-cli")));
+    // The brief check runs in the auxiliary session: a status reply in the caller's session would take the notifications
+    // (popups, chat) that belong in this command's reply.
+    AgentPrompt.PrintOnce(await GameHost.Status(options.GetValueOrDefault("endpoint"), CliSession.Aux));
     using var client = new HttpClient { BaseAddress = uri, Timeout = TimeSpan.FromSeconds(timeout + 5) };
     // cpu-preview with lists (--die-sizes/--frequencies/--core-counts containing commas) is a design sweep (cpu-variants).
     if (command == "game.cpu-preview" && request["parameters"] is JsonObject sweep && (sweep["dieSizes"] != null || sweep["coreCounts"] != null || sweep["frequencies"] != null))

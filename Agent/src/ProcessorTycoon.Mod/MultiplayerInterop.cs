@@ -41,6 +41,22 @@ internal static class MultiplayerInterop
         return result;
     }
 
+    // Chat lines, numbered (older Multiplayer versions have no chat reading: 0 and none).
+    public static int ChatLast => Get("ChatLast") as int? ?? 0;
+
+    public static JArray ChatSince(int since)
+    {
+        var result = new JArray();
+        if (Api?.GetMethod("ChatSince", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[] { since }) is not IEnumerable lines) return result;
+        foreach (IDictionary line in lines)
+        {
+            var item = new JObject();
+            foreach (DictionaryEntry entry in line) item[entry.Key.ToString()!] = entry.Value == null ? JValue.CreateNull() : JToken.FromObject(entry.Value);
+            result.Add(item);
+        }
+        return result;
+    }
+
     public static JObject Require() => Status() ?? throw new AgentError("multiplayer_not_installed", "The Processor Tycoon Multiplayer mod is not installed in this game (BepInEx/plugins/ProcessorTycoon.Mp).");
 
     public static void Call(string method, params object[] arguments)

@@ -27,6 +27,8 @@ internal sealed class GameNotifications : IDisposable
     private readonly string streamId = Guid.NewGuid().ToString("N");
     private string? captureError;
     private const int Capacity = 512;
+    private int chatSeen;
+    private float nextChatPoll;
 
     public void Initialize()
     {
@@ -73,13 +75,39 @@ internal sealed class GameNotifications : IDisposable
         while (history.Count > Capacity) history.Dequeue();
     }
 
+    // Multiplayer chat from other players joins the stream as "chat_message" items (this player's own lines and the
+    // Multiplayer mod's notes are left out). Polled twice a second, so gameDate is when the message arrived.
+    public void PollChat()
+    {
+        if (Time.unscaledTime < nextChatPoll) return;
+        nextChatPoll = Time.unscaledTime + .5f;
+        var last = MultiplayerInterop.ChatLast;
+        if (last <= chatSeen) return;
+        string? date = null;
+        try { date = (string?)TimeAdvanceController.ReadClock()["date"]; } catch { }
+        foreach (var line in MultiplayerInterop.ChatSince(chatSeen).OfType<JObject>())
+        {
+            var from = (string?)line["from"] ?? "";
+            if ((bool?)line["mine"] == true || from.Length == 0) continue;
+            var isPrivate = (bool?)line["private"] == true;
+            history.Enqueue(new JObject
+            {
+                ["id"] = ++cursor, ["gameDate"] = date, ["atUtc"] = DateTime.UtcNow, ["scene"] = SceneManager.GetActiveScene().name,
+                ["source"] = "multiplayer_chat", ["type"] = "chat_message", ["from"] = from, ["private"] = isPrivate,
+                ["text"] = $"{from}: {line["text"]}", ["detail"] = isPrivate ? "Private message to you; answer with mp chat \"@" + from + " TEXT\"" : "To everyone; answer with mp chat TEXT"
+            });
+        }
+        chatSeen = last;
+        while (history.Count > Capacity) history.Dequeue();
+    }
+
     public JObject Read(long since) => new()
     {
         ["streamId"] = streamId,
         ["items"] = new JArray(history.Where(item => (long)item["id"]! > since).Select(item => item.DeepClone())), ["cursor"] = cursor,
         ["historyTruncated"] = history.Count > 0 && since < (long)history.Peek()["id"]! - 1,
         ["captureAvailable"] = captureError == null, ["captureError"] = captureError,
-        ["scope"] = "Native transient popup text emitted since this mod instance started; disabled/suppressed notifications and blocking dialogs are not synthesized. No causal attribution."
+        ["scope"] = "Native transient popup text emitted since this mod instance started, and multiplayer chat from other players; disabled/suppressed notifications and blocking dialogs are not synthesized. No causal attribution."
     };
 
     public JObject Wrap(Request request, object response)

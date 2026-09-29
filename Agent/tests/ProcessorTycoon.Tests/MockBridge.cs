@@ -34,6 +34,8 @@ internal sealed class MockBridge : IDisposable
         ("Mobile", "ARM Co", "M1", 5000, 100), ("Industries", "Texas Increments", "TMX 17000", 4410, 43)
     };
     public readonly List<string> Log = new();
+    // The session of every status request (the CLI's own checks must not use the caller's notification session).
+    public readonly List<string> StatusSessions = new();
     // Quit simulation: how session-exit answers while the game shuts down, and a fake process state (never the real one).
     public string ExitMode = "ok";
     public volatile bool Exited;
@@ -180,6 +182,7 @@ internal sealed class MockBridge : IDisposable
         var target = request["target"]?.ToString() ?? "";
         var p = request["parameters"] as JsonObject ?? new JsonObject();
         Log.Add(command + (target.Length > 0 ? " " + target : ""));
+        if (command == "status") lock (StatusSessions) StatusSessions.Add(request["session"]?.ToString() ?? "");
         switch (command)
         {
             case "status": return new JsonObject { ["ok"] = true, ["version"] = "0.4.0" };

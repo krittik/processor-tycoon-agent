@@ -8,7 +8,7 @@ namespace ProcessorTycoonMod;
 
 // The mod's own layer above the game, built with the Processor Tycoon Mod API: the bottom-bar item ("Agent · Connected"),
 // which opens the Agent window docked above it, the About window, the action feed at the bottom right (it fades; hover it
-// to read the recent history) and the decorative action pointer. Nothing here blocks agent commands.
+// or the bottom-bar entry to read the history, the mouse wheel scrolls back) and the decorative action pointer. Nothing here blocks agent commands.
 internal sealed class AgentOverlay : IDisposable
 {
     private readonly Plugin plugin;
@@ -42,6 +42,7 @@ internal sealed class AgentOverlay : IDisposable
         settings = new AgentSettings(overlay, plugin, ToggleAbout);
         about = new AgentAbout(overlay, icons["connection"], plugin);
         feed = new Feed(overlay, rightSide: true, richText: false);
+        feed.FocusOn(tray.Rect);
         cursor = ActionPointer.Create(overlay.Root, "Agent");
         cursorScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
     }
@@ -76,7 +77,8 @@ internal sealed class AgentOverlay : IDisposable
             shownPause = plugin.Paused;
         }
         tray.Tick();
-        feed.Enabled = plugin.ShowFeed;
+        // The Agent window docks over the feed; the feed waits until it closes.
+        feed.Enabled = plugin.ShowFeed && !settings.Visible;
         feed.Tick();
     }
 

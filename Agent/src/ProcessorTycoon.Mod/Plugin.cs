@@ -72,6 +72,7 @@ public sealed class Plugin : BaseUnityPlugin
         windows.PlayerInput(journal.PlayerInputCursor);
         if (overlay == null) overlay = AgentOverlay.TryCreate(this);
         if (Input.GetKeyDown(KeyCode.F8)) overlay?.TogglePanel();
+        notifications.PollChat();
         for (var count = 0; count < 16 && requests.TryDequeue(out var request); count++)
         {
             lastActivity = DateTime.UtcNow;
@@ -122,7 +123,7 @@ public sealed class Plugin : BaseUnityPlugin
                 ok = true, defaultMethod = "game", reason = "Use semantic Game API for supported ordinary gameplay. Generic UI is detailed discovery/fallback for unmapped or modified content. Game actions preserve native rules and expose player-browsable UI data.",
                 localCliCommands = new[] { "help", "guide", "prompt", "status", "launch" },
                 notificationReplay = "notifications --since ID; replies also include new native popup messages automatically. IDs belong to this game process instance.",
-                commands = new[] { "status", "guide", "capabilities", "observe", "events", "notifications", "screenshot", "game.cpu-schema", "game.cpu-read", "game.time-advance", "game.time-cancel", "game.projects-wait", "ui.inspect", "ui.click", "ui.set", "ui.select", "ui.scroll", "ui.hover", "ui.focus", "ui.drag", "operation", "agent.pause", "agent.resume", "agent.delay", "agent.panel", "agent.say", "wait-until-resumed", "mp.status", "mp.host", "mp.join", "mp.resume", "mp.leave", "mp.chat" }.Concat(GameModules().SelectMany(m => m.Commands)).ToArray(),
+                commands = new[] { "status", "guide", "capabilities", "observe", "events", "notifications", "screenshot", "game.cpu-schema", "game.cpu-read", "game.time-advance", "game.time-cancel", "game.projects-wait", "ui.inspect", "ui.click", "ui.set", "ui.select", "ui.scroll", "ui.hover", "ui.focus", "ui.drag", "operation", "agent.pause", "agent.resume", "agent.delay", "agent.panel", "agent.say", "wait-until-resumed", "mp.status", "mp.host", "mp.join", "mp.resume", "mp.leave", "mp.chat", "mp.chat-read" }.Concat(GameModules().SelectMany(m => m.Commands)).ToArray(),
                 gameApi = new { cpu = CpuGameApi.Schema, cpuReview = CpuReviewGameApi.Schema, contracts = ContractsGameApi.Schema, market = MarketGameApi.Schema, utility = UtilityGameApi.Schema }, hidden = new[] { "observe", "ui.inspect", "game.cpu-read" },
                 windowPolicy = "Keep current workspace; close prior agent-opened workspaces on a domain change. Preserve player windows, explicit window-open pins, unfinished forms and dialogs.",
                 coverage = "106 Game commands cover inventoried ordinary workflows in English 0.2.16a5. Representative native lifecycles and independent gameplay were tested; not every combination or future version. Native-disabled/dormant features are not bypassed. Generic remains discovery/fallback.",
@@ -159,8 +160,18 @@ public sealed class Plugin : BaseUnityPlugin
             case "mp.chat":
                 var chatText = request.Target.Length > 0 ? request.Target : request.Value?.ToString() ?? "";
                 if (chatText.Length == 0) throw new AgentError("invalid_request", "mp chat requires the message text.");
+                var chatBefore = MultiplayerInterop.ChatLast;
                 MultiplayerInterop.Call("SendChat", chatText);
+                // The Multiplayer mod answers an unknown @name with a note instead of sending.
+                var note = MultiplayerInterop.ChatSince(chatBefore).FirstOrDefault(l => (string?)l["from"] == "");
+                if (note != null) throw new AgentError("chat_not_sent", (string?)note["text"] ?? "The message was not sent.");
                 return new { ok = true };
+            case "mp.chat-read":
+                MultiplayerInterop.Require();
+                // The conversation, own lines included (new messages from others also arrive in every reply's notifications).
+                var chatLines = MultiplayerInterop.ChatSince((int)request.Since);
+                var shownLines = new JArray(chatLines.Skip(Math.Max(0, chatLines.Count - request.Limit)));
+                return new { ok = true, data = new { lines = shownLines, last = MultiplayerInterop.ChatLast, omitted = chatLines.Count - shownLines.Count }, next = "Reply with mp chat TEXT (everyone) or mp chat \"@Name TEXT\" (one player, arrives as their email). Lines with from \"\" are notes from the Multiplayer mod." };
             case "game.cpu-schema": return new { ok = true, data = CpuGameApi.Schema };
             case "game.time-cancel":
                 if (request.Target.Length > 0 || request.Value != null || request.Parameters?.Count > 0) throw new AgentError("invalid_request", "time-cancel takes no arguments.");

@@ -33,6 +33,7 @@ internal static class ExeSmoke
         {
             var pulse = await Cli("game", "products-pulse", "--compact");
             check("exe products-pulse", pulse.Code == 0 && pulse.Json?["unassignedLines"]?.GetValue<int>() == 20, pulse.Raw);
+            check("exe status checks keep the caller's notifications", bridge.StatusSessions.Count > 0 && bridge.StatusSessions.All(s => s == "local-cli-aux"), string.Join(",", bridge.StatusSessions));
             check("exe float noise cleaned", pulse.Json?["finances"]?["balancePerMonth"]?.ToJsonString() == "4060000", pulse.Json?["finances"]?.ToJsonString() ?? pulse.Raw);
             var dry = await Cli("game", "product-price", "C46", "--price", "280", "--dry-run");
             check("exe product-price dry-run", dry.Code == 0 && dry.Json?["dryRun"]?.GetValue<bool>() == true && bridge.Products[0].Price == 589, dry.Raw);
