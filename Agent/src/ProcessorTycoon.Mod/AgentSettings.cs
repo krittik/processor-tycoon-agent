@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,40 +8,38 @@ using Paint = ProcessorTycoonMod.AgentUi.Paint;
 
 namespace ProcessorTycoonMod;
 
-// The Agent window, opened from the bottom-bar item (or F8) and docked above it: what the agent is doing, the prompt to give
-// an agent, pause, the action feed and the delay between agent actions; the footer's version link opens About.
+// The Agent window, opened from the bottom-bar item (or F8) and docked above it: whether an agent plays, the prompt to give
+// one, pause, the delay between agent actions and the on-screen action feed; the footer's version link opens About.
 internal sealed class AgentSettings
 {
+    private static readonly int[] Delays = { 0, 100, 250, 500, 1000 };
     private readonly Plugin plugin;
     private readonly AgentWindow window;
-    private readonly TextMeshProUGUI status, pause, feed, copy;
-    private readonly TMP_InputField delay;
+    private readonly Image dot;
+    private readonly TextMeshProUGUI status, hint, delayLabel;
+    private readonly Button pause, copy;
     private string shown = "";
     private float copiedUntil;
 
     public AgentSettings(Transform parent, Plugin plugin, Action openAbout)
     {
         this.plugin = plugin;
-        window = new AgentWindow(parent, "Agent", 330);
+        window = new AgentWindow(parent, "Agent", 350);
         var b = window.Body;
-        status = AgentUi.Label(b, "", 15, Paint.TextLow, wrap: true);
-        var copyRow = AgentUi.Row(b, 8, 28);
-        copy = Flexible(AgentUi.Button(copyRow.transform, "Copy prompt", CopyPrompt, cta: true));
+        (dot, status, _) = AgentUi.Status(b);
+        hint = AgentUi.Label(b, "", 14, Paint.TextLow, wrap: true);
         var actions = AgentUi.Row(b, 8, 28);
-        pause = Flexible(AgentUi.Button(actions.transform, "Pause", () => plugin.SetPaused(!plugin.Paused)));
-        feed = Flexible(AgentUi.Button(actions.transform, "Feed: on", plugin.ToggleFeed));
-        var delayRow = AgentUi.Row(b, 8, 28);
-        AgentUi.Size(AgentUi.Label(delayRow.transform, "Delay between agent actions", 15), flexWidth: 1);
-        delay = AgentUi.Input(delayRow.transform, plugin.Delay.ToString(CultureInfo.InvariantCulture), 5, value =>
-        {
-            if (int.TryParse(value, out var milliseconds)) plugin.SetDelay(Mathf.Clamp(milliseconds, 0, 60000));
-            delay!.SetTextWithoutNotify(plugin.Delay.ToString(CultureInfo.InvariantCulture));
-        }, 70, TMP_InputField.ContentType.IntegerNumber);
-        AgentUi.Label(delayRow.transform, "ms", 15, Paint.TextLow);
-        var presets = AgentUi.Row(b, 6, 26);
-        foreach (var value in new[] { 0, 100, 250, 500, 1000 }) Flexible(AgentUi.Button(presets.transform, value == 0 ? "Off" : value.ToString(CultureInfo.InvariantCulture), () => plugin.SetDelay(value), height: 26, size: 14));
-        var footer = window.Footer(openAbout);
-        AgentUi.Button(footer.transform, "Close", window.Close);
+        pause = Flexible(AgentUi.Button(actions.transform, "Pause agent", () => plugin.SetPaused(!plugin.Paused)));
+        copy = Flexible(AgentUi.Button(actions.transform, "Copy prompt", CopyPrompt));
+        Tip.On(copy.gameObject, "Copy prompt", "A short starting message for an AI agent that can run commands on this PC, such as Claude Code or Codex: where this game's command-line tool is and how to begin. Paste it to the agent and add your goal.");
+        var delayRow = AgentUi.Row(b, 6, 28);
+        delayLabel = AgentUi.Label(delayRow.transform, "Delay", 15);
+        delayLabel.GetComponent<LayoutElement>().minWidth = 40;
+        AgentUi.Info(delayRow.transform, "Delay between actions", "How long the agent waits between its actions, so you can follow what it does. Off plays at full speed.");
+        AgentUi.Size(AgentUi.Rect("Spacer", delayRow.transform), flexWidth: 1);
+        AgentUi.Segments(delayRow.transform, new[] { "Off", "0.1 s", "0.25 s", "0.5 s", "1 s" }, () => Array.IndexOf(Delays, plugin.Delay), i => plugin.SetDelay(Delays[i]));
+        AgentUi.Check(b, "Show agent actions on screen", () => plugin.ShowFeed, _ => plugin.ToggleFeed());
+        window.Footer(openAbout);
     }
 
     public bool Visible => window.Visible;
@@ -51,18 +50,26 @@ internal sealed class AgentSettings
     {
         if (!window.Visible) return;
         var connection = plugin.Connection;
-        var text = plugin.Paused ? "Paused: agent actions wait until you resume."
-            : connection == "Agent Connected" ? "An agent is connected and plays through the visible game."
-            : "No agent is connected. Copy the prompt, paste it to your AI agent (any agent that can run commands on this PC) and add your goal.";
         var copied = Time.unscaledTime < copiedUntil;
-        var state = $"{text}|{plugin.Paused}|{plugin.ShowFeed}|{plugin.Delay}|{copied}";
+        var state = $"{connection}|{plugin.Paused}|{plugin.Delay}|{copied}|{AgentUi.Revision}";
         if (state == shown) return;
         shown = state;
-        status.text = text;
-        copy.text = copied ? "Copied to the clipboard" : "Copy prompt";
-        pause.text = plugin.Paused ? "Resume" : "Pause";
-        feed.text = plugin.ShowFeed ? "Feed: on" : "Feed: off";
-        if (!delay.isFocused) delay.SetTextWithoutNotify(plugin.Delay.ToString(CultureInfo.InvariantCulture));
+        var connected = connection == "Agent Connected";
+        var (paint, title, detail) = plugin.Paused ? (Paint.Cta, "Paused", "Agent actions wait until you resume.")
+            : connected ? (Paint.Positive, "Agent connected", "")
+            : connection == "Bridge error" ? (Paint.Negative, "The agent bridge could not start", "The game's BepInEx log says why.")
+            : (Paint.TextLow, "No agent connected", "Copy the prompt and paste it to an AI agent that can run commands on this PC.");
+        Painted.Set(dot, paint);
+        status.text = title;
+        hint.text = detail;
+        hint.gameObject.SetActive(detail.Length > 0);
+        pause.GetComponentInChildren<TextMeshProUGUI>().text = plugin.Paused ? "Resume agent" : "Pause agent";
+        copy.GetComponentInChildren<TextMeshProUGUI>().text = copied ? "Copied" : "Copy prompt";
+        // The primary action follows the state: resume when paused, copy the prompt while no agent plays.
+        AgentUi.Style(pause, plugin.Paused);
+        AgentUi.Style(copy, !plugin.Paused && !connected);
+        var custom = !Delays.Contains(plugin.Delay);
+        delayLabel.text = custom ? $"Delay ({plugin.Delay.ToString(CultureInfo.InvariantCulture)} ms)" : "Delay";
     }
 
     // A short starting message: where this installation's CLI is (worked out on the player's PC) and how to read the full
@@ -75,10 +82,10 @@ internal sealed class AgentSettings
         Refresh();
     }
 
-    // Equal-width buttons in a row; returns the button's label.
-    private static TextMeshProUGUI Flexible(Button button)
+    // Equal-width buttons in a row.
+    private static Button Flexible(Button button)
     {
         AgentUi.Size(button, flexWidth: 1).minWidth = 0;
-        return button.GetComponentInChildren<TextMeshProUGUI>();
+        return button;
     }
 }

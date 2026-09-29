@@ -636,7 +636,7 @@ public sealed class Plugin : BaseUnityPlugin
         Feed(value ? "Paused" : "Resumed", false, value ? "pause" : "connection");
     }
 
-    internal void SetDelay(int value) { delay.Value = value; Feed(value == 0 ? "Actions delay: off" : $"Actions delay: {value} ms", false, "edit"); }
+    internal void SetDelay(int value) { delay.Value = value; Feed(value == 0 ? "Delay between actions: off" : $"Delay between actions: {value} ms", false, "edit"); }
     internal void ToggleFeed() => showFeed.Value = !showFeed.Value;
     private void Feed(string message, bool repeatable = false, string icon = "read") => overlay?.Add(message, repeatable, icon);
 

@@ -24,7 +24,7 @@ Alternatively, tell the agent: “Play Processor Tycoon through `FULL_PATH_TO_GA
 
 The agent learns the API from the tool itself. It checks whether the game is closed, the mod is reachable, or the main menu is open without a campaign. `launch` can open the visible game; new/load remain separate explicit actions. Do not run multiple agents controlling the same game at once.
 
-You can stop agent actions through the Agent Settings tray. Agent pause is separate from game-time pause. The agent must not resume itself or change its action delay without your explicit request.
+You can stop agent actions with **Pause agent** in the Agent window. Agent pause is separate from game-time pause. The agent must not resume itself or change its action delay without your explicit request.
 
 ## Manual diagnostics
 

@@ -32,7 +32,6 @@ internal sealed class AgentOverlay : IDisposable
     private readonly Dictionary<string, Sprite> icons = new();
     private readonly List<Entry> entries = new();
     private readonly FeedRow[] rows = new FeedRow[6];
-    private int shownDelay = -1;
     private string shownConnection = "";
     private bool shownPause;
 
@@ -53,6 +52,7 @@ internal sealed class AgentOverlay : IDisposable
         canvas = root.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 32760;
+        AgentUi.Root = (RectTransform)root.transform;
 
         // Bottom-bar item: same look and press as the Multiplayer mod's item next to it.
         tray = Rect("Agent tray", root.transform, 300, 40);
@@ -126,12 +126,11 @@ internal sealed class AgentOverlay : IDisposable
         settings.Refresh();
         about.Tick();
         var connectionText = plugin.Connection.Replace("Agent ", "").Replace("Waiting for agent", "Offline");
-        if (shownConnection != connectionText || shownDelay != plugin.Delay || shownPause != plugin.Paused)
+        if (shownConnection != connectionText || shownPause != plugin.Paused)
         {
-            status.text = $"Agent · {(plugin.Paused ? "Paused" : connectionText)}    Actions delay: {(plugin.Delay == 0 ? "off" : plugin.Delay + " ms")}";
+            status.text = $"Agent · {(plugin.Paused ? "Paused" : connectionText)}";
             connection.sprite = icons[plugin.Paused ? "pause" : "connection"];
             shownConnection = connectionText;
-            shownDelay = plugin.Delay;
             shownPause = plugin.Paused;
         }
         var uiWidth = Screen.width / canvas.scaleFactor;
