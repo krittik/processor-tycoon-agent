@@ -1,21 +1,19 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using ProcessorTycoonModApi;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace ProcessorTycoonMod;
 
 // The mod's own layer above the game, built with the Processor Tycoon Mod API: the bottom-bar item ("Agent · Connected"),
 // which opens the Agent window docked above it, the About window, the action feed at the bottom right (it fades; hover it
-// to read the recent history) and the decorative agent cursor. Nothing here blocks agent commands.
+// to read the recent history) and the decorative action pointer. Nothing here blocks agent commands.
 internal sealed class AgentOverlay : IDisposable
 {
     private readonly Plugin plugin;
     private readonly Overlay overlay;
-    private readonly AgentCursor cursor;
+    private readonly ActionPointer cursor;
     private int cursorScene;
     private readonly BarItem tray;
     private readonly AgentSettings settings;
@@ -42,9 +40,9 @@ internal sealed class AgentOverlay : IDisposable
         tray = new BarItem(overlay, "agent", 0, icons["connection"], "Agent");
         tray.Clicked += TogglePanel;
         settings = new AgentSettings(overlay, plugin, ToggleAbout);
-        about = new AgentAbout(overlay, icons["connection"]);
+        about = new AgentAbout(overlay, icons["connection"], plugin);
         feed = new Feed(overlay, rightSide: true, richText: false);
-        cursor = AgentCursor.Create(overlay.Root);
+        cursor = ActionPointer.Create(overlay.Root, "Agent");
         cursorScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
     }
 
@@ -86,20 +84,13 @@ internal sealed class AgentOverlay : IDisposable
     {
         var assembly = Assembly.GetExecutingAssembly();
         foreach (var name in new[] { "read", "search", "chart", "edit", "click", "open", "close", "pause", "connection", "message", "error", "picture" })
-        {
-            using var stream = assembly.GetManifestResourceStream("Icons." + name + ".png") ?? throw new InvalidOperationException("Missing embedded icon: " + name);
-            using var bytes = new MemoryStream();
-            stream.CopyTo(bytes);
-            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, name = "Agent " + name };
-            ImageConversion.LoadImage(texture, bytes.ToArray());
-            icons[name] = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 48);
-        }
+            icons[name] = Sprites.FromResource(assembly, "Icons." + name + ".png", 48);
     }
 
     public void Dispose()
     {
         tray.Destroy();
         overlay.Destroy();
-        foreach (var sprite in icons.Values) { Object.Destroy(sprite.texture); Object.Destroy(sprite); }
+        foreach (var sprite in icons.Values) Sprites.Destroy(sprite);
     }
 }
