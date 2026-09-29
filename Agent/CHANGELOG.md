@@ -9,6 +9,7 @@ Plugin and `pt-agent` CLI now share one version.
 - **Multiplayer:** `cpu-review` / `cpu-develop` ignore the process node's daily maturity % while a session clock runs (reviews failed with `context_changed` at 1 day/s); a `context_changed` names the field that moved. `research-funding-compare` works in a session (its shared clock cannot be paused).
 - **About and credits:** the Agent Settings panel (F8 or the tray) shows the version and release name; click it for credits, license and the project page (`agent panel --value about`). `pt-agent --help` and `status` show the version too.
 - The Agent window (bottom-bar item or F8) is drawn like the game's windows and the Multiplayer mod's: title bar, what the agent is doing, pause, feed and the delay between actions, and a footer whose version link opens About. It opens above the bottom-bar item; buttons press like the game's, with the hand cursor.
+- **Copy prompt** in the Agent window copies the agent prompt (the same as `pt-agent prompt`), headed by the path of this installation's CLI.
 - The mod's own overlay (Agent window, About window, feed) never blocks agent commands.
 - Released under the MIT license; the zip carries the license and the notices of what it redistributes (Newtonsoft.Json, the .NET runtime inside `pt-agent.exe`).
 

@@ -14,6 +14,8 @@ Open a terminal in the game directory and run:
 .\pt-agent.cmd prompt
 ```
 
+Or, in the game, open the Agent window (the Agent item in the bottom bar, or F8) and click **Copy prompt**: it copies the same prompt, headed by where the CLI is on this PC.
+
 Copy the printed prompt to your agent and add your goal, for example: “Start a new game on Normal and try to dominate the market.” The prompt describes the game and its economic mechanics, but does not include a machine-specific CLI path. Give the agent the CLI path separately if it does not already have access to it.
 
 On the first successful CLI connection to each game process, the same prompt is printed to standard error before the command response. Later commands in that game process do not repeat it. An explicit `prompt` command always prints it to standard output, even when the game is closed. JSON command responses remain on standard output.

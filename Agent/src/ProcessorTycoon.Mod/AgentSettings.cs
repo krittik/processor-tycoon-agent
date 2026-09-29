@@ -7,15 +7,16 @@ using Paint = ProcessorTycoonMod.AgentUi.Paint;
 
 namespace ProcessorTycoonMod;
 
-// The Agent window, opened from the bottom-bar item (or F8) and docked above it: what the agent is doing, pause, the action
-// feed and the delay between agent actions; the footer's version link opens About.
+// The Agent window, opened from the bottom-bar item (or F8) and docked above it: what the agent is doing, the prompt to give
+// an agent, pause, the action feed and the delay between agent actions; the footer's version link opens About.
 internal sealed class AgentSettings
 {
     private readonly Plugin plugin;
     private readonly AgentWindow window;
-    private readonly TextMeshProUGUI status, pause, feed;
+    private readonly TextMeshProUGUI status, pause, feed, copy;
     private readonly TMP_InputField delay;
     private string shown = "";
+    private float copiedUntil;
 
     public AgentSettings(Transform parent, Plugin plugin, Action openAbout)
     {
@@ -23,6 +24,8 @@ internal sealed class AgentSettings
         window = new AgentWindow(parent, "Agent", 330);
         var b = window.Body;
         status = AgentUi.Label(b, "", 15, Paint.TextLow, wrap: true);
+        var copyRow = AgentUi.Row(b, 8, 28);
+        copy = Flexible(AgentUi.Button(copyRow.transform, "Copy prompt", CopyPrompt, cta: true));
         var actions = AgentUi.Row(b, 8, 28);
         pause = Flexible(AgentUi.Button(actions.transform, "Pause", () => plugin.SetPaused(!plugin.Paused)));
         feed = Flexible(AgentUi.Button(actions.transform, "Feed: on", plugin.ToggleFeed));
@@ -50,14 +53,25 @@ internal sealed class AgentSettings
         var connection = plugin.Connection;
         var text = plugin.Paused ? "Paused: agent actions wait until you resume."
             : connection == "Agent Connected" ? "An agent is connected and plays through the visible game."
-            : "No agent is connected. Give your agent the prompt from pt-agent prompt (see START-HERE.md).";
-        var state = $"{text}|{plugin.Paused}|{plugin.ShowFeed}|{plugin.Delay}";
+            : "No agent is connected. Copy the prompt and give it to your AI agent (any agent that can run commands on this PC), with your goal.";
+        var copied = Time.unscaledTime < copiedUntil;
+        var state = $"{text}|{plugin.Paused}|{plugin.ShowFeed}|{plugin.Delay}|{copied}";
         if (state == shown) return;
         shown = state;
         status.text = text;
+        copy.text = copied ? "Copied to the clipboard" : "Copy prompt";
         pause.text = plugin.Paused ? "Resume" : "Pause";
         feed.text = plugin.ShowFeed ? "Feed: on" : "Feed: off";
         if (!delay.isFocused) delay.SetTextWithoutNotify(plugin.Delay.ToString(CultureInfo.InvariantCulture));
+    }
+
+    // The same brief as `pt-agent prompt`, headed by where this installation's CLI is, so an agent can start right away.
+    private void CopyPrompt()
+    {
+        var cli = System.IO.Path.Combine(BepInEx.Paths.GameRootPath, "tools", "pt-agent.exe");
+        GUIUtility.systemCopyBuffer = $"Play Processor Tycoon through its command-line tool on this PC: \"{cli}\". Begin with --help and status.\n\n{AgentPromptText.Text}";
+        copiedUntil = Time.unscaledTime + 2.5f;
+        Refresh();
     }
 
     // Equal-width buttons in a row; returns the button's label.
