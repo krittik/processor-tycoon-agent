@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please remove anything private (names, IP addresses, Steam IDs) from logs and screenshots.
+  - type: input
+    id: mod-version
+    attributes:
+      label: API version, and the mod you saw it in
+      description: The API version is in ModApi/CHANGELOG.md of the mod's repository, e.g. 0.1.0 in Processor Tycoon Multiplayer v0.3.0
+    validations:
+      required: true
+  - type: input
+    id: game-version
+    attributes:
+      label: Game version
+      placeholder: 0.2.16a5
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Other mods installed, and which API piece is involved (window, bottom-bar entry, feed, email…)
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Relevant part of BepInEx/LogOutput.log from the game folder
+      render: text
