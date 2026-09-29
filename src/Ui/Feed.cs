@@ -9,25 +9,34 @@ using UnityEngine.UI;
 namespace ProcessorTycoonModApi;
 
 // Transparent lines in a bottom corner of the screen, like the Agent mod's action feed (bottom right) or a chat (bottom
-// left). New lines fade out after Lifetime seconds. Hovering the lines, or typing, focuses the feed: the recent history on
-// a dark backdrop, the mouse wheel scrolls back. An optional input line (chat) opens with OpenInput or Enter (EnterOpens)
-// and raises Submitted. The lines never block clicks on the game; only the open input takes the keyboard, and the game
-// ignores its hotkeys while a text field is focused.
+// left). New lines fade out after Lifetime seconds. Hovering the feed, or typing, focuses it: the history on a dark
+// backdrop, the mouse wheel (or Page Up / Page Down while typing) scrolls back, and a thin bar shows where. FocusOn adds another element that focuses it on hover
+// (a bottom-bar entry), so the history stays reachable after every line has faded.
+// An optional input line (chat) at the bottom: InputAlwaysVisible keeps it on screen (dim, showing IdleHint) and a click
+// or Enter starts typing; otherwise it appears only while typing (Enter with EnterOpens, or OpenInput). Submitted gets the
+// text. The lines never block clicks on the game; only the input line takes clicks and, while typing, the keyboard (the game
+// ignores its hotkeys while a text field is focused).
 internal sealed class Feed
 {
     private sealed class Entry { public string Text = ""; public Sprite? Icon; public int Count = 1; public float Time; }
     private sealed class Line { public RectTransform Rect = null!; public Image Icon = null!; public TextMeshProUGUI Text = null!; }
 
-    private const float Gap = 3, IconSpace = 22, InputHeight = 28;
+    private const float Gap = 3, IconSpace = 22, InputHeight = 28, HoverDelay = .3f;
     private readonly Overlay overlay;
     private readonly RectTransform panel;
-    private readonly Image backdrop;
+    private readonly Image backdrop, scrollBar;
     private readonly List<Entry> entries = new();
     private readonly List<Line> lines = new();
+    private readonly List<RectTransform> focusTargets = new();
     private readonly RectTransform inputRow;
+    private readonly Image field;
     private readonly TMP_InputField input;
+    private readonly TextMeshProUGUI hint;
+    private readonly string placeholder;
+    private readonly Vector3[] corners = new Vector3[4];
     private Rect zone;
-    private bool hovered;
+    private bool typing;
+    private float targetHoverSince = -1;
     private int scroll, openFrame = -1, activeFrame = -1, deselectFrame = -1, closedFrame = -10;
 
     public bool RightSide { get; }
@@ -36,21 +45,30 @@ internal sealed class Feed
     public float Lifetime = 18, FadeTime = 4, IdleAlpha = .78f;
     public int IdleLines = 6, FocusLines = 12, History = 100;
     public Color TextColor = new(.76f, .78f, .8f);
-    // Enter opens the input line when no other text field has the keyboard.
+    // Enter starts typing when no other text field has the keyboard.
     public bool EnterOpens { get; set; }
+    // The input line stays on screen, dim with IdleHint (for example "Press Enter to chat"), below the lines.
+    public bool InputAlwaysVisible { get; set; }
+    public string IdleHint { get; set; } = "";
     public event Action<string>? Submitted;
 
     public Feed(Overlay overlay, bool rightSide, bool richText = true, string placeholder = "")
     {
         this.overlay = overlay;
+        this.placeholder = placeholder;
         RightSide = rightSide;
         panel = Ui.Rect(rightSide ? "Feed right" : "Feed left", overlay.Root);
         panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(rightSide ? 1 : 0, 0);
         backdrop = Ui.Fill(Ui.Rect("Backdrop", panel), null);
-        backdrop.color = new Color(.137f, .137f, .137f, .6f);
+        backdrop.color = new Color(.137f, .137f, .137f, .88f);   // readable over desktop icons
         backdrop.raycastTarget = false;
         var backRect = backdrop.rectTransform;
         backRect.anchorMin = backRect.anchorMax = backRect.pivot = Vector2.zero;
+        scrollBar = Ui.Fill(Ui.Rect("Scroll", panel), null, Ui.Rounded, 12);
+        scrollBar.color = new Color(1, 1, 1, .3f);
+        scrollBar.raycastTarget = false;
+        var barRect = scrollBar.rectTransform;
+        barRect.anchorMin = barRect.anchorMax = barRect.pivot = Vector2.zero;
         for (var i = 0; i < 24; i++)
         {
             var rect = Ui.Rect("Line", panel);
@@ -73,8 +91,7 @@ internal sealed class Feed
         }
         inputRow = Ui.Rect("Input", panel);
         inputRow.anchorMin = inputRow.anchorMax = inputRow.pivot = Vector2.zero;
-        var field = Ui.Fill(inputRow, null, Ui.Rounded, 5);
-        field.color = new Color(.1f, .1f, .1f, .85f);
+        field = Ui.Fill(inputRow, null, Ui.Rounded, 5);
         var area = Ui.Rect("Text Area", inputRow);
         Ui.Stretch(area, 8, 8);
         area.gameObject.AddComponent<RectMask2D>();
@@ -83,9 +100,8 @@ internal sealed class Feed
         typed.color = Color.white;
         typed.richText = false;
         Ui.Stretch(typed.rectTransform, 0, 0);
-        var hint = Ui.Label(area, placeholder, 15);
+        hint = Ui.Label(area, placeholder, 15);
         Painted.Clear(hint);
-        hint.color = new Color(1, 1, 1, .45f);
         hint.fontStyle = FontStyles.Italic;
         Ui.Stretch(hint.rectTransform, 0, 0);
         input = inputRow.gameObject.AddComponent<TMP_InputField>();
@@ -97,13 +113,15 @@ internal sealed class Feed
         input.caretColor = Color.white;
         input.selectionColor = new Color(1, 1, 1, .25f);
         input.navigation = new Navigation { mode = Navigation.Mode.None };
+        input.transition = Selectable.Transition.None;
         input.onFocusSelectAll = false;   // a prefilled "@Name " stays; typing continues after it
         input.onSubmit.AddListener(Submit);
         inputRow.gameObject.AddComponent<TextCursor>();
         inputRow.gameObject.SetActive(false);
     }
 
-    public bool InputOpen => inputRow.gameObject.activeSelf;
+    // The input line has the keyboard.
+    public bool Typing => typing;
     // Another text field (a game or mod window) has the keyboard.
     public static bool TypingElsewhere
     {
@@ -114,7 +132,8 @@ internal sealed class Feed
         }
     }
 
-    // A new line; with repeatable, the same text as the last line adds "×2", "×3"… instead.
+    // A new line; with repeatable, the same text as the last line adds "×2", "×3"… instead. A reader scrolled back keeps
+    // their place.
     public void Add(string text, Sprite? icon = null, bool repeatable = false)
     {
         text = text.Replace('\n', ' ').Replace('\r', ' ').Trim();
@@ -122,13 +141,18 @@ internal sealed class Feed
         if (repeatable && last != null && last.Text == text && last.Icon == icon) { last.Count++; last.Time = Time.unscaledTime; return; }
         entries.Add(new Entry { Text = text, Icon = icon, Time = Time.unscaledTime });
         if (entries.Count > History) entries.RemoveAt(0);
-        scroll = 0;
+        else if (scroll > 0) scroll++;
     }
 
     public void Clear() { entries.Clear(); scroll = 0; }
 
-    // Opens the input line on the next frame (a key that opened it must not also type into it), with prefill appended to a
-    // kept draft only when the draft is empty.
+    // Scrolls a focused feed back (positive) or forward, in lines.
+    public void ScrollBy(int lines) => scroll += lines;
+
+    // Hovering this element (for example the mod's bottom-bar entry) also focuses the feed, after a short delay.
+    public void FocusOn(RectTransform target) { if (!focusTargets.Contains(target)) focusTargets.Add(target); }
+
+    // Starts typing on the next frame (a key that started it must not also type into it); a prefill replaces the draft.
     public void OpenInput(string prefill = "")
     {
         if (!Enabled) return;
@@ -136,12 +160,14 @@ internal sealed class Feed
         openFrame = Time.frameCount + 1;
     }
 
+    // Stops typing; the draft stays.
     public void CloseInput()
     {
-        if (!InputOpen && openFrame < 0) return;
+        if (!typing && openFrame < 0) return;
         openFrame = -1;
+        typing = false;
         input.DeactivateInputField();
-        inputRow.gameObject.SetActive(false);
+        if (!InputAlwaysVisible) inputRow.gameObject.SetActive(false);
         closedFrame = Time.frameCount;
         // One frame later, so a key that closed it (Esc) is not also seen by the game as unfocused input.
         deselectFrame = Time.frameCount + 1;
@@ -158,12 +184,16 @@ internal sealed class Feed
     {
         var frame = Time.frameCount;
         if (deselectFrame == frame && EventSystem.current != null && EventSystem.current.currentSelectedGameObject == input.gameObject) EventSystem.current.SetSelectedGameObject(null);
-        if (!Enabled) { if (InputOpen) CloseInput(); panel.gameObject.SetActive(false); return; }
+        if (!Enabled) { if (typing || openFrame >= 0) CloseInput(); panel.gameObject.SetActive(false); targetHoverSince = -1; return; }
         if (!panel.gameObject.activeSelf) panel.gameObject.SetActive(true);
         if (openFrame == frame) Activate();
-        if (InputOpen)
+        // A click into the visible input line.
+        if (!typing && openFrame < 0 && input.isFocused) { typing = true; activeFrame = frame; }
+        if (typing)
         {
             if (UnityEngine.Input.GetKeyDown(KeyCode.Escape)) CloseInput();
+            else if (UnityEngine.Input.GetKeyDown(KeyCode.PageUp)) ScrollBy(FocusLines - 1);
+            else if (UnityEngine.Input.GetKeyDown(KeyCode.PageDown)) ScrollBy(1 - FocusLines);
             else if (frame > activeFrame + 2 && !input.isFocused) CloseInput();   // clicked elsewhere; the draft stays
         }
         else if (EnterOpens && openFrame < 0 && frame - closedFrame > 1 && (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter)) && !TypingElsewhere)
@@ -174,6 +204,7 @@ internal sealed class Feed
     private void Activate()
     {
         openFrame = -1;
+        typing = true;
         activeFrame = Time.frameCount;
         inputRow.gameObject.SetActive(true);
         EventSystem.current?.SetSelectedGameObject(input.gameObject);
@@ -181,23 +212,43 @@ internal sealed class Feed
         input.caretPosition = input.text.Length;
     }
 
+    // One of the FocusOn elements has been under the mouse for HoverDelay.
+    private bool TargetHovered(Vector2 mouse)
+    {
+        var over = false;
+        foreach (var target in focusTargets)
+        {
+            if (target == null || !target.gameObject.activeInHierarchy) continue;
+            target.GetWorldCorners(corners);   // screen pixels on an overlay canvas
+            var rect = new Rect(corners[0] / overlay.Scale, (corners[2] - corners[0]) / overlay.Scale);
+            if (rect.Contains(mouse)) { over = true; break; }
+        }
+        if (!over) { targetHoverSince = -1; return false; }
+        if (targetHoverSince < 0) targetHoverSince = Time.unscaledTime;
+        return Time.unscaledTime - targetHoverSince >= HoverDelay;
+    }
+
     private void Layout()
     {
         var now = Time.unscaledTime;
         var mouse = overlay.Mouse;
-        hovered = zone.width > 0 && zone.Contains(mouse);
-        var focus = InputOpen || hovered;
-        if (focus && hovered)
+        var hovered = (zone.width > 0 && zone.Contains(mouse)) | TargetHovered(mouse);
+        var focus = typing || hovered;
+        var maxScroll = Mathf.Max(0, entries.Count - FocusLines);
+        if (hovered)
         {
             var wheel = UnityEngine.Input.mouseScrollDelta.y;
-            if (wheel != 0) scroll = Mathf.Clamp(scroll + (wheel > 0 ? 1 : -1), 0, Mathf.Max(0, entries.Count - FocusLines));
+            if (wheel != 0) scroll += wheel > 0 ? 1 : -1;
         }
-        if (!focus) scroll = 0;
+        scroll = focus ? Mathf.Clamp(scroll, 0, maxScroll) : 0;
         var shown = focus
             ? entries.Take(entries.Count - scroll).Reverse().Take(FocusLines).ToList()
             : entries.Where(e => now - e.Time < Lifetime).Reverse().Take(IdleLines).ToList();
         var width = Mathf.Clamp(overlay.Width - 40, 250, MaxWidth);
-        var y = InputOpen ? InputHeight + 4 : 0f;
+        var withInput = InputAlwaysVisible || typing;
+        if (inputRow.gameObject.activeSelf != withInput) inputRow.gameObject.SetActive(withInput);
+        var y = withInput ? InputHeight + 4 : 0f;
+        var linesBottom = y;
         var contentWidth = 0f;
         for (var i = 0; i < lines.Count; i++)
         {
@@ -230,21 +281,36 @@ internal sealed class Feed
             contentWidth = Mathf.Max(contentWidth, textWidth + (entry.Icon != null ? IconSpace : 0));
             y += height + Gap;
         }
-        if (InputOpen)
+        if (withInput)
         {
             inputRow.sizeDelta = new Vector2(width, InputHeight);
             inputRow.anchoredPosition = Vector2.zero;
             contentWidth = width;
+            // Dim while waiting, clearer on hover, solid while typing.
+            field.color = new Color(.1f, .1f, .1f, typing ? .85f : focus ? .7f : .45f);
+            hint.text = typing || IdleHint.Length == 0 ? placeholder : IdleHint;
+            hint.color = new Color(1, 1, 1, typing ? .45f : focus ? .6f : .5f);
+            input.textComponent.color = new Color(1, 1, 1, typing ? 1f : .6f);
         }
-        var any = shown.Count > 0 || InputOpen;
         panel.sizeDelta = new Vector2(width, y);
         panel.anchoredPosition = new Vector2(RightSide ? -Side : Side, Bottom);
-        // Focus area: the lines themselves, a little padded; the backdrop covers it while focused.
+        // Focus area: the lines and the input line, a little padded; the backdrop covers it while focused.
         var left = RightSide ? width - contentWidth : 0;
         var back = backdrop.rectTransform;
         back.anchoredPosition = new Vector2(left - 8, -6);
         back.sizeDelta = new Vector2(contentWidth + 16, y + 10);
-        backdrop.enabled = any && focus && shown.Count > 0;
+        backdrop.enabled = focus && shown.Count > 0;
+        // Where the shown lines are in the history, when it is longer than they are.
+        var scrollable = focus && maxScroll > 0 && shown.Count > 0;
+        scrollBar.enabled = scrollable;
+        if (scrollable)
+        {
+            var track = y - linesBottom - Gap;
+            var bar = scrollBar.rectTransform;
+            bar.sizeDelta = new Vector2(3, Mathf.Max(12, track * shown.Count / entries.Count));
+            bar.anchoredPosition = new Vector2(RightSide ? left - 5 : contentWidth + 2, linesBottom + (track - bar.sizeDelta.y) * scroll / maxScroll);
+        }
+        var any = shown.Count > 0 || withInput;
         var origin = RightSide ? new Vector2(overlay.Width - Side - width, Bottom) : new Vector2(Side, Bottom);
         zone = any ? new Rect(origin.x + left - 8, origin.y - 6, contentWidth + 16, y + 10) : default;
     }
