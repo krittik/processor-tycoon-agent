@@ -18,6 +18,7 @@ internal sealed class Request
     public long Since { get; set; }
     public bool Changes { get; set; }
     public bool Hidden { get; set; }
+    public bool HeadlessFast { get; set; }
     public bool ExplicitUserRequest { get; set; }
     public string? ObserveAfter { get; set; }
     public JObject? Parameters { get; set; }

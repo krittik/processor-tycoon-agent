@@ -10,8 +10,7 @@
     <RestoreAdditionalProjectSources>https://api.nuget.org/v3/index.json;https://nuget.bepinex.dev/v3/index.json;https://nuget.samboy.dev/v3/index.json</RestoreAdditionalProjectSources>
     <RequiresGame>true</RequiresGame>
     <PluginDir>$(GameDir)\BepInEx\plugins\ProcessorTycoon.Mod</PluginDir>
-    <!-- Processor Tycoon Mod API: its source is vendored into ModApi/ (git subtree); only its UI layer is compiled in,
-         which needs no game assembly (this mod never references Assembly-CSharp). -->
+    <!-- Vendored Mod API UI layer; explicit Fast/ adapter also references the target game's simulation assembly. -->
     <ModApiDir Condition="'$(ModApiDir)' == ''">$(RepoRoot)ModApi\</ModApiDir>
   </PropertyGroup>
 
@@ -19,11 +18,16 @@
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="UnityEngine.Modules" Version="6000.0.65" IncludeAssets="compile" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Assembly-CSharp" Publicize="true">
+      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>$(GameManagedDir)\UnityEngine.UI.dll</HintPath>
       <Private>false</Private>

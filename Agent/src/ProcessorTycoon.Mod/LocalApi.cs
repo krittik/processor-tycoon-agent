@@ -25,7 +25,7 @@ internal sealed class LocalApi : IDisposable
         listener.Prefixes.Add(Endpoint);
         listener.Start();
         Directory.CreateDirectory(Path.GetDirectoryName(discoveryFile)!);
-        File.WriteAllText(discoveryFile, Wire.Serialize(new { endpoint = Endpoint, instance = Instance, apiVersion = 1 }));
+        File.WriteAllText(discoveryFile, Wire.Serialize(new { endpoint = Endpoint, instance = Instance, apiVersion = 1, headlessFastVersion = 1 }));
         _ = Listen();
     }
 

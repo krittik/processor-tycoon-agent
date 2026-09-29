@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 // Responses mimic the plugin's shapes closely enough to drive the CLI compositions end to end without the game.
 internal sealed class MockBridge : IDisposable
 {
+    public int HeadlessFastVersion = 1;
     internal sealed class Product
     {
         public string Name = "", Ref = "", Market = "Desktop";
@@ -158,6 +159,11 @@ internal sealed class MockBridge : IDisposable
     private string? Raw(JsonObject request)
     {
         var command = request["command"]?.ToString() ?? "";
+        if (request["headlessFast"]?.GetValue<bool>() == true)
+        {
+            Log.Add("fast " + command);
+            return new JsonObject { ["ok"] = true, ["data"] = new JsonObject { ["executionMode"] = "headless-fast", ["command"] = command, ["parameters"] = request["parameters"]?.DeepClone() } }.ToJsonString();
+        }
         if (command == "game.session-exit")
         {
             Log.Add("game.session-exit " + request["target"]);
@@ -185,7 +191,7 @@ internal sealed class MockBridge : IDisposable
         if (command == "status") lock (StatusSessions) StatusSessions.Add(request["session"]?.ToString() ?? "");
         switch (command)
         {
-            case "status": return new JsonObject { ["ok"] = true, ["version"] = "0.4.0" };
+            case "status": return new JsonObject { ["ok"] = true, ["apiVersion"] = 1, ["version"] = "0.4.0", ["headlessFastVersion"] = HeadlessFastVersion };
             case "notifications": return new JsonObject { ["ok"] = true, ["notifications"] = new JsonObject { ["items"] = new JsonArray(new JsonObject { ["id"] = 1, ["gameDate"] = "2017-04-20", ["type"] = "competitor_cpu_released", ["text"] = "Inlet has released a new CPU!" }), ["cursor"] = 1, ["captureAvailable"] = true } };
             case "game.production-expand":
                 Pending += (int)(p["lines"]?.GetValue<long>() ?? 0);

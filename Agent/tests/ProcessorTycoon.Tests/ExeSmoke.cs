@@ -31,6 +31,14 @@ internal static class ExeSmoke
         }
         try
         {
+            var fast = await Cli("game", "situation", "--headless-fast", "--compact");
+            check("exe fast bypasses UI composition and operation polling", fast.Code == 0 && fast.Json?["data"]?["executionMode"]?.ToString() == "headless-fast" && bridge.Log.Where(s => !s.StartsWith("status", StringComparison.Ordinal)).SequenceEqual(new[] { "fast game.situation" }), fast.Raw + " " + string.Join(",", bridge.Log));
+            bridge.Log.Clear();
+            bridge.HeadlessFastVersion = 0;
+            var oldFast = await Cli("game", "product-price", "C46", "--price", "123", "--headless-fast");
+            check("exe fast refuses old bridges without dispatch or UI fallback", oldFast.Code == 1 && oldFast.Json?["error"]?["code"]?.ToString() == "headless_fast_unavailable" && bridge.Products[0].Price == 589 && bridge.Log.All(s => s.StartsWith("status", StringComparison.Ordinal)), oldFast.Raw + " " + string.Join(",", bridge.Log));
+            bridge.HeadlessFastVersion = 1;
+            bridge.Log.Clear();
             var pulse = await Cli("game", "products-pulse", "--compact");
             check("exe products-pulse", pulse.Code == 0 && pulse.Json?["unassignedLines"]?.GetValue<int>() == 20, pulse.Raw);
             check("exe status checks keep the caller's notifications", bridge.StatusSessions.Count > 0 && bridge.StatusSessions.All(s => s == "local-cli-aux"), string.Join(",", bridge.StatusSessions));

@@ -38,6 +38,7 @@ static async Task<int> Run(string[] args)
           pt-agent game watch-advance --all-products --days 30 --demand-down-percent 20   Guarded day-by-day advance (or --products A,B / one NAME).
                    add --portfolio-guards, --stop-on-competitor-price-cut-percent 10, --stop-on-expansion-complete, --monthly-digest
           pt-agent game situation --compact        Company health, markets (Desktop/Mobile/Industries), rival moves, flags.
+          pt-agent game situation --headless-fast  Direct model snapshot without window navigation; see guide for supported commands.
           pt-agent game market-changes --compact   Rival price changes, leader changes and recommended-price moves since last call.
           pt-agent game product-price NAME --price P --dry-run   Pre-commit warnings (drop --dry-run to commit); price-history / price-revert NAME.
           pt-agent game plan-apply --file plan.json [--dry-run]   Several line/price changes with readback (lines: N, max or add).
@@ -54,6 +55,8 @@ static async Task<int> Run(string[] args)
         Prefer Game API: semantic targets, units, complete catalogs and verified action results.
         Generic (observe / ui) is verbose discovery/fallback for modified or unmapped UI, not ordinary play.
         Reads may open native windows. Run gameplay commands sequentially. Use screenshot for visual checks.
+        --headless-fast explicitly opts into direct API calls: drafts/actions may be invisible; windows may lag.
+        Use ordinary mode for visible feedback. If unsure which experience the user wants, ask before choosing fast mode.
         Respect paused_by_user; never self-resume or change action delay without an explicit user request.
         The first live CLI connection in each game process prints the agent prompt to stderr before the command response.
         Full guide: pt-agent guide (also printed by a specific command's --help).
@@ -81,7 +84,7 @@ static async Task<int> Run(string[] args)
     var positional = new List<string>();
     var options = new Dictionary<string, string>();
     var flags = new HashSet<string>();
-    var flagNames = new[] { "hidden", "explicit-user-request", "no-wait", "changes", "compact", "windowed" };
+    var flagNames = new[] { "hidden", "headless-fast", "explicit-user-request", "no-wait", "changes", "compact", "windowed" };
     var compact = args.Contains("--compact");
     var gameOptions = new Dictionary<string, (string Key, string Type)>
     {
@@ -166,6 +169,8 @@ static async Task<int> Run(string[] args)
     }
     var target = positional.Count > index ? positional[index++] : "";
     if (positional.Count != index && positional.Count > index) throw new ArgumentException("Unexpected positional arguments. Values must use --value.");
+    if (flags.Contains("headless-fast") && !command.StartsWith("game.", StringComparison.Ordinal)) throw new ArgumentException("--headless-fast belongs to semantic game commands; it does not launch a headless process.");
+    if (flags.Contains("headless-fast") && flags.Contains("hidden")) throw new ArgumentException("Use --headless-fast or --hidden, not both: they select different execution guarantees.");
     var timeout = options.TryGetValue("timeout", out var timeoutValue) ? int.Parse(timeoutValue) : 30;
     if (timeout < 1 || timeout > 60) throw new ArgumentException("--timeout must be 1..60 seconds.");
     if ((options.ContainsKey("company") || options.ContainsKey("company-type")) && command is not ("mp.join" or "companion.start")) throw new ArgumentException("--company and --company-type belong to mp join and companion start.");
@@ -197,6 +202,7 @@ static async Task<int> Run(string[] args)
     {
         ["command"] = command, ["target"] = target, ["session"] = options.GetValueOrDefault("session", "local-cli"),
         ["scope"] = options.GetValueOrDefault("scope", ""), ["hidden"] = flags.Contains("hidden"),
+        ["headlessFast"] = flags.Contains("headless-fast"),
         ["changes"] = flags.Contains("changes"),
         ["explicitUserRequest"] = flags.Contains("explicit-user-request"),
         ["offset"] = options.TryGetValue("offset", out var offset) ? int.Parse(offset) : 0,
@@ -214,7 +220,7 @@ static async Task<int> Run(string[] args)
     string? notificationType = null;
     if (command == "notifications" && options.Remove("type", out var typeFilter)) notificationType = typeFilter;
     if (command == "notifications" && options.TryGetValue("limit", out var notificationLimit) && (!int.TryParse(notificationLimit, out var parsedLimit) || parsedLimit < 1)) throw new ArgumentException("--limit must be a positive integer.");
-    foreach (var option in options.Where(o => gameOptions.ContainsKey(o.Key)))
+    foreach (var option in options.Where(o => gameOptions.ContainsKey(o.Key) && !(command == "mp.join" && o.Key is "company" or "company-type")))
     {
         if (!command.StartsWith("game.", StringComparison.Ordinal)) throw new ArgumentException($"--{option.Key} is a Game API parameter.");
         var field = gameOptions[option.Key];
@@ -247,8 +253,29 @@ static async Task<int> Run(string[] args)
     if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || uri.Scheme != "http" || !uri.IsLoopback) throw new ArgumentException("Endpoint must be a loopback HTTP URL.");
     // The brief check runs in the auxiliary session: a status reply in the caller's session would take the notifications
     // (popups, chat) that belong in this command's reply.
-    AgentPrompt.PrintOnce(await GameHost.Status(options.GetValueOrDefault("endpoint"), CliSession.Aux));
+    var fastMode = flags.Contains("headless-fast");
+    var fastSupported = fastMode && GameHost.LocalSupportsFast(endpoint);
+    if (!fastMode || !fastSupported || !AgentPrompt.AlreadyPrintedFor(endpoint))
+    {
+        var briefStatus = await GameHost.Status(options.GetValueOrDefault("endpoint"), CliSession.Aux);
+        AgentPrompt.PrintOnce(briefStatus);
+        fastSupported = briefStatus["headlessFastVersion"]?.GetValue<int>() == 1;
+    }
+    if (fastMode && !fastSupported)
+    {
+        Console.WriteLine(new JsonObject { ["ok"] = false, ["error"] = new JsonObject { ["code"] = "headless_fast_unavailable", ["message"] = "This bridge does not advertise the direct fast API. Update and restart the mod before using --headless-fast. No gameplay command was sent; no UI fallback occurred." } }.ToJsonString());
+        return 1;
+    }
     using var client = new HttpClient { BaseAddress = uri, Timeout = TimeSpan.FromSeconds(timeout + 5) };
+    if (flags.Contains("headless-fast"))
+    {
+        using var content = new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync("v1/command", content);
+        response.EnsureSuccessStatusCode();
+        var direct = JsonSafe.ParseObject(await response.Content.ReadAsStringAsync());
+        Console.WriteLine(Output(direct, compact));
+        return direct["ok"]?.GetValue<bool>() == true ? 0 : 1;
+    }
     // cpu-preview with lists (--die-sizes/--frequencies/--core-counts containing commas) is a design sweep (cpu-variants).
     if (command == "game.cpu-preview" && request["parameters"] is JsonObject sweep && (sweep["dieSizes"] != null || sweep["coreCounts"] != null || sweep["frequencies"] != null))
     {

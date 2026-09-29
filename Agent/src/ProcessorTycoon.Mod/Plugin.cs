@@ -110,10 +110,26 @@ public sealed class Plugin : BaseUnityPlugin
 
     private object Handle(Request request)
     {
+        if (request.HeadlessFast)
+        {
+            if (paused) throw new AgentError("paused_by_user", "Agent is paused; --headless-fast does not bypass the user's pause.");
+            var mutation = Fast.FastGameApi.IsMutation(request);
+            if (mutation && (busy || pending.Count > 0 || timeAdvanceOperationId != null)) throw new AgentError("operation_in_progress", "An operation is active; wait for its outcome before a direct mutation.");
+            if (mutation && Time.realtimeSinceStartup - lastAction < delay.Value / 1000f) throw new AgentError("action_delay_pending", "The user-selected action delay has not elapsed; no action was executed.");
+            var direct = Fast.FastGameApi.Execute(request);
+            if (!mutation) return new { ok = true, data = direct };
+            var finished = new Operation { command = request.Command, state = "completed", result = new { data = direct } };
+            operations[finished.id] = finished;
+            TrimOperations(finished.id);
+            lastAction = Time.realtimeSinceStartup;
+            Feed("/" + request.Command.Substring(5) + " · headless-fast", false, "edit");
+            journal.Add("agent", request.Command, new { operationId = finished.id, session = request.Session, executionMode = "headless-fast" });
+            return new { ok = true, operation = finished };
+        }
         switch (request.Command)
         {
             case "notifications": return new { ok = true, notifications = notifications.Read(request.Since) };
-            case "status": return new { ok = true, version = PluginVersion, release = AgentInfo.Release, repository = AgentInfo.Repository, apiVersion = 1, instance = api?.Instance, gameDirectory = Paths.GameRootPath, scene = ui.Scene, game = GameSessionState.Read(ui), state = Connection, paused, actionDelayMs = delay.Value, session, queued = pending.Count, busy, timeAdvanceOperationId, startupError, activity = journal.Status, multiplayer = MultiplayerInterop.Status() };
+            case "status": return new { ok = true, headlessFastVersion = 1, version = PluginVersion, release = AgentInfo.Release, repository = AgentInfo.Repository, apiVersion = 1, instance = api?.Instance, gameDirectory = Paths.GameRootPath, scene = ui.Scene, game = GameSessionState.Read(ui), state = Connection, paused, actionDelayMs = delay.Value, session, queued = pending.Count, busy, timeAdvanceOperationId, startupError, activity = journal.Status, multiplayer = MultiplayerInterop.Status() };
             case "events": return new { ok = true, data = journal.Since(request.Since) };
             case "guide":
                 using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AgentGuide"))
@@ -122,6 +138,7 @@ public sealed class Plugin : BaseUnityPlugin
             {
                 ok = true, defaultMethod = "game", reason = "Use semantic Game API for supported ordinary gameplay. Generic UI is detailed discovery/fallback for unmapped or modified content. Game actions preserve native rules and expose player-browsable UI data.",
                 localCliCommands = new[] { "help", "guide", "prompt", "status", "launch" },
+                headlessFast = new { flag = "--headless-fast", commands = Fast.FastGameApi.Commands, behavior = "Direct simulation API without native window navigation or visual clicks. Explicit opt-in; no UI fallback. Ask the user if expected visual feedback makes the choice unclear." },
                 notificationReplay = "notifications --since ID; replies also include new native popup messages automatically. IDs belong to this game process instance.",
                 commands = new[] { "status", "guide", "capabilities", "observe", "events", "notifications", "screenshot", "game.cpu-schema", "game.cpu-read", "game.time-advance", "game.time-cancel", "game.projects-wait", "ui.inspect", "ui.click", "ui.set", "ui.select", "ui.scroll", "ui.hover", "ui.focus", "ui.drag", "operation", "agent.pause", "agent.resume", "agent.delay", "agent.panel", "agent.say", "wait-until-resumed", "mp.status", "mp.host", "mp.join", "mp.resume", "mp.leave", "mp.chat", "mp.chat-read" }.Concat(GameModules().SelectMany(m => m.Commands)).ToArray(),
                 gameApi = new { cpu = CpuGameApi.Schema, cpuReview = CpuReviewGameApi.Schema, contracts = ContractsGameApi.Schema, market = MarketGameApi.Schema, utility = UtilityGameApi.Schema }, hidden = new[] { "observe", "ui.inspect", "game.cpu-read" },

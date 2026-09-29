@@ -1,5 +1,12 @@
 # Changelog — Processor Tycoon Agent
 
+## Unreleased
+
+- Explicit `--headless-fast` direct simulation API: coherent finance/production/research/market snapshots, prices/lines/research settings, independent CPU draft with native calculations, guarded development and project/release lifecycle. No native window navigation, UI settle waits or CLI operation polling; unsupported commands fail without fallback. Supported inventory is in capabilities/guide.
+- Help, starting prompt and guide explain why to use fast mode, its numeric schemas and the missing visible editor/click feedback. Agents should ask the user when unsure which mode fits their intent. Ordinary UI execution remains the default.
+- Fast API support is advertised in discovery/status and checked before dispatch; an older bridge cannot silently ignore the flag and perform a visible action. Direct CPU sweeps preserve the draft, and scoped references reject stale runs/scenes.
+- Fixed CLI routing of multiplayer join's company/company-type parameters, which were incorrectly rejected as ordinary Game API flags.
+
 ## 0.5.0 "Autopilot" — 2026-09-29
 
 Plugin and `pt-agent` CLI now share one version.

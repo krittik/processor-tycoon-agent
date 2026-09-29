@@ -25,6 +25,7 @@ internal static class AgentPrompt
     Money and debt: negative cash is a loan against Available Credit. Interest is charged every month on the whole debt (desktop-read finances.debt shows the implied rate). The credit limit grows over time, including jumps such as around the new year (finances.creditTrend measures it in your game), and that growth can fund early spending. But interest on all debt eventually cancels it: finances.debt.debtWhereInterestEqualsLimitGrowth shows where new headroom stops. Beyond that point debt becomes a trap in which interest consumes all new credit headroom and the company can no longer afford research or a new CPU. Each development, research, and factory commitment made before products earn money compounds this. Before committing, estimate the cash needed until the product earns (project, research, factories, and interest) against Available Credit, and ask whether the product will actually win meaningful demand against the rivals it will face at release. An uncompetitive product bought with borrowed money may never be repaid. When Available Credit falls below zero the company is in default: the top bar shows "Bankruptcy in N days" (finances.default in desktop-read, product-pulse, and time-advance results). The countdown always runs to zero and does not clear early; the company goes bankrupt if Available Credit is still below zero when it ends. The native warning popup may appear only once, so later defaults can be silent (time-advance wakes with default_started). A second dip starts a new countdown after the previous one ends; emergency sales of lines or the division can be disabled or worth little, so check their previews before relying on them.
 
     Agent instructions:
+    Use `--headless-fast` only when direct actions without visible editor navigation or animated clicks fit the user's intent. It is an explicit fast model API, not a launch flag: some actions and drafts may be invisible and existing windows may lag. If the user expects visual feedback, ordinary mode is preferable. If unsure whether to use it, ask the user. Read the guide/capabilities for supported commands; unsupported fast commands fail without UI fallback. Inspect returned JSON, and never interpret an unchanged window as proof an action failed or repeat a lost mutation blindly.
     Use this CLI to play Processor Tycoon. Start with --help and status, then use guide to learn the available commands. Run `game situation` regularly (for example monthly) and before large commitments: it summarizes reserve, debt, research, your products against the best rivals, and production, and flags common dangers. Follow my gameplay instructions, explain consequential decisions, and report interface limitations in chat. If I have not given you a goal, first learn the game and the CLI (this brief, --help, status), then ask me what I want (for example a new game or one of my saves, the difficulty, what counts as success) before you start, load or change a campaign. Base decisions on the current game's market, competitor, product, research, production, and financial data; do not assume that a strategy from another game will work here. If you write local helper scripts that loop over game commands, give them explicit stop conditions (credit, default countdown, stock growth, demand collapse, competitor releases) and review their effect regularly; an unattended loop can keep producing, pricing, or spending into a disaster.
 
     Playing with me in multiplayer: if I host a session and want you as another player, ask me first, then run `pt-agent companion start NAME --explicit-user-request`. It starts your own copy of the game without a window that joins my session; play only through the companion CLI it prints. This installation's CLI is my game: never use it for your own moves.
@@ -49,5 +50,16 @@ internal static class AgentPrompt
             File.WriteAllText(marker, instance);
         }
         finally { mutex.ReleaseMutex(); }
+    }
+
+    internal static bool AlreadyPrintedFor(string endpoint)
+    {
+        var root = GameHost.FindRoot();
+        if (root == null) return false;
+        var discovery = Path.Combine(root, "tools", "endpoint.json");
+        var marker = Path.Combine(root, "tools", "agent-prompt-instance.txt");
+        if (!File.Exists(discovery) || !File.Exists(marker)) return false;
+        var current = JsonNode.Parse(File.ReadAllText(discovery));
+        return string.Equals(current?["endpoint"]?.GetValue<string>()?.TrimEnd('/'), endpoint.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) && current?["instance"]?.GetValue<string>() == File.ReadAllText(marker);
     }
 }

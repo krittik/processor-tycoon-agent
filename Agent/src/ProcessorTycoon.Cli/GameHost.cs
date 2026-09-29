@@ -26,6 +26,16 @@ internal static class GameHost
         return File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path))?["endpoint"]?.GetValue<string>() : null;
     }
 
+    internal static bool LocalSupportsFast(string endpoint)
+    {
+        var root = FindRoot();
+        if (root == null) return false;
+        var path = Path.Combine(root, "tools", "endpoint.json");
+        if (!File.Exists(path)) return false;
+        var discovery = JsonNode.Parse(File.ReadAllText(path));
+        return string.Equals(discovery?["endpoint"]?.GetValue<string>()?.TrimEnd('/'), endpoint.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) && discovery?["headlessFastVersion"]?.GetValue<int>() == 1;
+    }
+
     private static int[] Processes(string? root)
     {
         var ids = new List<int>();

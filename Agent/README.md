@@ -2,6 +2,8 @@
 
 BepInEx plugin (`ProcessorTycoon.Mod`) plus the `pt-agent` CLI that lets an external agent play the visible game. Building and the game path: see the [repository README](../README.md).
 
+Explicit `--headless-fast` provides a direct main-thread simulation API for supported commands, without native window navigation. It works in visible games and headless companions. Actions/drafts may be invisible; agents should ask when the user's expected visual feedback is unclear. Supported commands, numeric schemas and limits are in [AGENT_GUIDE.md](AGENT_GUIDE.md#direct-api---headless-fast); version-specific game access is isolated in `src/ProcessorTycoon.Mod/Fast/`.
+
 ```
 Agent/
   src/ProcessorTycoon.Mod/   plugin          src/ProcessorTycoon.Cli/  pt-agent CLI

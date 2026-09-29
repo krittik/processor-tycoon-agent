@@ -19,6 +19,42 @@ Run `pt-agent status` first. This is a read-only diagnostic even with the game c
 
 `status` never navigates or resumes the game. When an accepted mutation loses its response, its outcome may be unknown; diagnostics are not permission to replay it. `launch` is a local CLI command, not a Game API route.
 
+## Direct API: `--headless-fast`
+
+Append `--headless-fast` to a supported `game` command when speed and JSON results matter more than visible interaction. It works in a visible client or a headless companion; it does not launch a process. The mod accesses the simulation on Unity's main thread in one request, without opening editors, navigating windows, waiting for UI frames or polling operations. `situation` is one coherent snapshot. Native ownership, technology availability, project spending and multiplayer replication still apply; user pause and action delay are respected.
+
+**Choose the mode with the user:** ordinary mode provides visible native navigation and action feedback. Fast mode can leave drafts and actions invisible, with no animated clicks; existing windows may refresh later or show unrelated drafts. This is a poor fit when the player expects to watch the agent's actions. If unsure whether to use fast mode, ask the user. An unchanged window does not prove failure: inspect JSON, and never blindly replay a lost mutation. Native events can still open notifications/the release form, and native dialogs/forms can still pause time.
+
+```text
+pt-agent game situation --headless-fast --compact
+pt-agent game research-list --status available --headless-fast
+pt-agent game cpu-preview --name "Trial One" --headless-fast
+pt-agent game cpu-review "Trial One" --target-market Desktop --planned-price 100 --headless-fast
+pt-agent game cpu-develop "Trial One" --review-id REVIEW_ID --decision-reason "Explain the choice" --acknowledge-risks RISK_KINDS --headless-fast
+pt-agent game product-price "Trial One" --price 100 --headless-fast
+```
+
+Live `capabilities.headlessFast.commands` is the authoritative supported inventory:
+
+| Direct commands | Behavior and limits |
+| --- | --- |
+| `desktop-read`, `finance-read`, `situation` | Current own finances. Fast finance-read is not selected-company historical finance. Situation includes research, production, markets and public released rivals; no legacy trend tracker or full UI tooltip guidance. |
+| `production-read`, `product-list`, `products-pulse`, `product-read`, `product-pulse` | Own active released products and capacity. Select one by exact unique name or scene-scoped productRef; refresh references after reload/restart. |
+| `product-set`, `product-price`, `product-preview`, `product-production` | Price/name/sale flags/retirement as applicable; dry-run and preview do not commit. Manual lines integer or max respects capacity and automation. No demand forecast. |
+| `production-settings`, `production-automation` | automation (or enabled), upgradeWafer, foundryServices; native company-type/difficulty limits. |
+| `research-list`, `research-read`, `research-start`, `research-set`, `research-cancel` | Complete player-browsable tech tree; list status/query filters. Exact unlocked technology for start; fundingPercent/innovationEffort for set. |
+| `market-catalog`, `market-share` | Public released CPUs; catalog market/search/showRetired filters. Share supports market filter, last completed day's units ×30 / current monthly size, not historical chart shares. Recommended segment prices included; tooltip preference guidance is not yet collected. UI view/sortBy/category are unsupported. |
+| `time-read` | Date and multiplayer time-control permission; no direct advance or speed change. |
+| `cpu-options`, `cpu-select` | package/process-node/memory/architecture; select exact value name. Owned/unlocked hardware including obsolete entries, currently available public/royalty architectures. Licensed foundry nodes and UI picker filters unsupported. |
+| `cpu-preview`, `cpu-read` | Separate fast draft, no import/export to the visible editor. Ordinary preview fields except memoryController (native default External). L1/L2 KB per core; L3 shared. Use returned frequencyMHzValues; arbitrary frequencies cannot bypass native slider steps. |
+| `cpu-variants` | dieSizes/frequencies/coreCounts comma-separated lists, optional plannedPrice; at most60 combinations using native math in one snapshot, without changing draft. Bare frequencies always mean MHz in fast mode; explicit GHz/MHz/KHz suffixes accepted. Margin assumes all output sells. |
+| `cpu-review`, `cpu-develop` | Review applies only to fast draft, expires after 3 minutes or draft/date/cash/cost changes. Inspect finance/rivals/risks; provide decision reason and acknowledge risk kinds. Baseline repeats current cash flow plus draft cost; no credit growth, future rival or demand prediction. |
+| `projects-list`, `projects-release-read`, `projects-release-preview`, `projects-release` | Own scheduled projects/completed CPUs. Preview/release exact unique completed name with explicit price 1..9999, optional name/sale flags. |
+
+Direct results have their own numeric schema, not the ordinary UI/composition schema. They include executionMode, source, date, snapshotFrame, elapsedMs and visualFeedback. Mutations return already completed operations. elapsedMs measures the adapter, not CLI startup/network/frame queue. MIPS/MHz are physical units; financial/demand rates are the last native day ×30, not realized monthly totals. Price changes affect future ticks; immediate demand remains the previous day's data. Unsupported commands/parameters fail explicitly without UI fallback; remove the flag only when visible execution is acceptable. Do not combine it with --hidden or UI --observe behavior.
+
+Fast success confirms the local model. In multiplayer, remote clients receive native deltas on subsequent host ticks; a newly released CPU may take more than one tick to appear remotely. Fast development schedules the native project without creating a visual project row, so use fast projects-list to observe it. Ordinary UI project lists may omit it until their rows are rebuilt. A completed CPU still enters the native release lifecycle. Fast release accepts an exact unique name or the returned scene/run-scoped productRef.
+
 ## Start here: Game API for supported work, Generic UI for everything else
 
 Use `game` commands for ordinary supported play: semantic names, physical units, compact catalogs and action readback. Generic is only fallback for unmapped/modified UI or diagnosis. Game API can read entire open player-browsable catalogs including offscreen cards without manual pan/scroll; native game rules and player-accessible knowledge remain authoritative. Explicit start/develop/send/sign commits; preview/read/list does not. The 106 Game commands cover inventoried ordinary workflows in English 0.2.16a5, with representative native lifecycle tests and independent gameplay acceptance. This is not a guarantee for every combination or future version.
