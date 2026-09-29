@@ -14,7 +14,7 @@ Open a terminal in the game directory and run:
 .\pt-agent.cmd prompt
 ```
 
-Or, in the game, open the Agent window (the Agent item in the bottom bar, or F8) and click **Copy prompt**: it copies the same prompt, headed by where the CLI is on this PC.
+Or, in the game, open the Agent window (the Agent item in the bottom bar, or F8) and click **Copy prompt**: it copies a short starting message with the path of the CLI on this PC and tells the agent to read the full prompt with `prompt`. Paste it to your agent and add your goal.
 
 Copy the printed prompt to your agent and add your goal, for example: “Start a new game on Normal and try to dominate the market.” The prompt describes the game and its economic mechanics, but does not include a machine-specific CLI path. Give the agent the CLI path separately if it does not already have access to it.
 

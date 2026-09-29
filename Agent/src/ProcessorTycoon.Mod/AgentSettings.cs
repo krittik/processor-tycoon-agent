@@ -53,7 +53,7 @@ internal sealed class AgentSettings
         var connection = plugin.Connection;
         var text = plugin.Paused ? "Paused: agent actions wait until you resume."
             : connection == "Agent Connected" ? "An agent is connected and plays through the visible game."
-            : "No agent is connected. Copy the prompt and give it to your AI agent (any agent that can run commands on this PC), with your goal.";
+            : "No agent is connected. Copy the prompt, paste it to your AI agent (any agent that can run commands on this PC) and add your goal.";
         var copied = Time.unscaledTime < copiedUntil;
         var state = $"{text}|{plugin.Paused}|{plugin.ShowFeed}|{plugin.Delay}|{copied}";
         if (state == shown) return;
@@ -65,11 +65,12 @@ internal sealed class AgentSettings
         if (!delay.isFocused) delay.SetTextWithoutNotify(plugin.Delay.ToString(CultureInfo.InvariantCulture));
     }
 
-    // The same brief as `pt-agent prompt`, headed by where this installation's CLI is, so an agent can start right away.
+    // A short starting message: where this installation's CLI is (worked out on the player's PC) and how to read the full
+    // brief from it, so the brief always matches the installed CLI. The player adds their goal after "My goal:".
     private void CopyPrompt()
     {
         var cli = System.IO.Path.Combine(BepInEx.Paths.GameRootPath, "tools", "pt-agent.exe");
-        GUIUtility.systemCopyBuffer = $"Play Processor Tycoon through its command-line tool on this PC: \"{cli}\". Begin with --help and status.\n\n{AgentPromptText.Text}";
+        GUIUtility.systemCopyBuffer = $"Play Processor Tycoon on my PC through its command-line tool:\n\"{cli}\"\n\nFirst run it with \"prompt\" and read that whole game brief and its rules before playing; run it again after any context compaction. Then start with --help and status; \"guide\" lists every command.\n\nMy goal: ";
         copiedUntil = Time.unscaledTime + 2.5f;
         Refresh();
     }
