@@ -22,7 +22,7 @@ internal sealed class Feed
     private sealed class Entry { public string Text = ""; public Sprite? Icon; public int Count = 1; public float Time; }
     private sealed class Line { public RectTransform Rect = null!; public Image Icon = null!; public TextMeshProUGUI Text = null!; }
 
-    private const float Gap = 3, IconSpace = 22, InputHeight = 28, HoverDelay = .3f;
+    private const float Gap = 3, IconSpace = 22, InputHeight = 28, InputMaxHeight = 110, HoverDelay = .3f;
     private readonly Overlay overlay;
     private readonly RectTransform panel;
     private readonly Image backdrop, scrollBar;
@@ -33,6 +33,8 @@ internal sealed class Feed
     private readonly Image field;
     private readonly TMP_InputField input;
     private readonly TextMeshProUGUI hint;
+    private string measured = "";
+    private float measuredHeight;
     private readonly string placeholder;
     private readonly Vector3[] corners = new Vector3[4];
     private Rect zone;
@@ -94,12 +96,15 @@ internal sealed class Feed
         inputRow.anchorMin = inputRow.anchorMax = inputRow.pivot = Vector2.zero;
         field = Ui.Fill(inputRow, null, Ui.Rounded, 5);
         var area = Ui.Rect("Text Area", inputRow);
-        Ui.Stretch(area, 8, 8);
+        Ui.Stretch(area, 8, 8, 4, 4);
         area.gameObject.AddComponent<RectMask2D>();
-        var typed = Ui.Label(area, "", 15);
+        // A long message wraps and the line grows upward (up to five lines), so all of it stays readable while typing.
+        var typed = Ui.Label(area, "", 15, align: TextAlignmentOptions.TopLeft);
         Painted.Clear(typed);
         typed.color = Color.white;
         typed.richText = false;
+        typed.textWrappingMode = TextWrappingModes.Normal;
+        typed.overflowMode = TextOverflowModes.Overflow;
         Ui.Stretch(typed.rectTransform, 0, 0);
         hint = Ui.Label(area, placeholder, 15);
         Painted.Clear(hint);
@@ -110,6 +115,7 @@ internal sealed class Feed
         input.textComponent = typed;
         input.placeholder = hint;
         input.characterLimit = 300;
+        input.lineType = TMP_InputField.LineType.MultiLineSubmit;   // wraps; Enter still sends
         input.customCaretColor = true;
         input.caretColor = Color.white;
         input.selectionColor = new Color(1, 1, 1, .25f);
@@ -229,6 +235,17 @@ internal sealed class Feed
         return Time.unscaledTime - targetHoverSince >= HoverDelay;
     }
 
+    // The input line's height for the typed text (measured again only when it changes).
+    private float InputRowHeight(float width)
+    {
+        if (measured != input.text)
+        {
+            measured = input.text;
+            measuredHeight = measured.Length == 0 ? 0 : input.textComponent.GetPreferredValues(measured, width - 16, 0).y;
+        }
+        return Mathf.Clamp(measuredHeight + 8, InputHeight, InputMaxHeight);
+    }
+
     private void Layout()
     {
         var now = Time.unscaledTime;
@@ -236,10 +253,11 @@ internal sealed class Feed
         var width = Mathf.Clamp(overlay.Width - 40, 250, MaxWidth);
         var origin = RightSide ? new Vector2(overlay.Width - Side - width, Bottom) : new Vector2(Side, Bottom);
         var withInput = InputAlwaysVisible || typing;
+        var inputHeight = withInput ? InputRowHeight(width) : 0;
         // Focus starts on the input line or a FocusOn element (on the lines only for a feed with neither), never by passing
         // over lines that may lie on a game window; once focused, the whole history area keeps it.
         var hovered = TargetHovered(mouse) || focused && zone.Contains(mouse)
-            || (withInput ? new Rect(origin, new Vector2(width, InputHeight)).Contains(mouse) : focusTargets.Count == 0 && zone.Contains(mouse));
+            || (withInput ? new Rect(origin, new Vector2(width, inputHeight)).Contains(mouse) : focusTargets.Count == 0 && zone.Contains(mouse));
         var focus = typing || hovered;
         focused = focus;
         var maxScroll = Mathf.Max(0, entries.Count - FocusLines);
@@ -253,7 +271,7 @@ internal sealed class Feed
             ? entries.Take(entries.Count - scroll).Reverse().Take(FocusLines).ToList()
             : entries.Where(e => now - e.Time < Lifetime).Reverse().Take(IdleLines).ToList();
         if (inputRow.gameObject.activeSelf != withInput) inputRow.gameObject.SetActive(withInput);
-        var y = withInput ? InputHeight + 4 : 0f;
+        var y = withInput ? inputHeight + 4 : 0f;
         var linesBottom = y;
         var contentWidth = 0f;
         for (var i = 0; i < lines.Count; i++)
@@ -289,7 +307,7 @@ internal sealed class Feed
         }
         if (withInput)
         {
-            inputRow.sizeDelta = new Vector2(width, InputHeight);
+            inputRow.sizeDelta = new Vector2(width, inputHeight);
             inputRow.anchoredPosition = Vector2.zero;
             contentWidth = width;
             // Dim while waiting, clearer on hover, solid while typing.
