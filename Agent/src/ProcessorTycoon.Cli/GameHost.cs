@@ -43,9 +43,9 @@ internal static class GameHost
         return ids.ToArray();
     }
 
-    internal static async Task<JsonObject> Status(string? explicitEndpoint = null, string session = "local-cli")
+    internal static async Task<JsonObject> Status(string? explicitEndpoint = null, string session = CliSession.Aux, string? root = null)
     {
-        var root = FindRoot();
+        root ??= FindRoot();
         var processes = Processes(root);
         var installed = root != null && File.Exists(Path.Combine(root, "BepInEx", "plugins", "ProcessorTycoon.Mod", "ProcessorTycoon.Mod.dll"));
         var host = new JsonObject { ["gameDirectory"] = root, ["executable"] = root == null ? null : Path.Combine(root, Executable), ["processRunning"] = processes.Length > 0, ["processIds"] = new JsonArray(processes.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray()), ["modInstalled"] = installed, ["canLaunch"] = root != null && installed && processes.Length == 0 };

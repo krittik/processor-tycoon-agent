@@ -151,7 +151,10 @@ public sealed class Plugin : BaseUnityPlugin
                 return new { ok = true, data = MultiplayerInterop.Require(), next = "Hosting starts from the current game; other players join with mp join ADDRESS. Read mp status." };
             case "mp.join":
                 if (request.Target.Length == 0) throw new AgentError("invalid_request", "mp join requires the host address (ip:port).");
-                MultiplayerInterop.Call("Join", request.Target, request.Value?.ToString() ?? "");
+                // With --company / --company-type (and in a game without a window) the company is set up at once.
+                if (request.Parameters?["company"] != null || request.Parameters?["companyType"] != null)
+                    MultiplayerInterop.Call("JoinAs", request.Target, request.Value?.ToString() ?? "", request.Parameters?["company"]?.ToString() ?? "", request.Parameters?["companyType"]?.Value<int>() ?? 0);
+                else MultiplayerInterop.Call("Join", request.Target, request.Value?.ToString() ?? "");
                 return new { ok = true, data = MultiplayerInterop.Require(), next = "Joining loads the shared world (a few seconds). Poll mp status until state is Running." };
             case "mp.resume":
                 MultiplayerInterop.Call("Resume", request.Target, "", request.Value?.ToString() ?? "");

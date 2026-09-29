@@ -43,6 +43,8 @@ static async Task<int> Run(string[] args)
           pt-agent game plan-apply --file plan.json [--dry-run]   Several line/price changes with readback (lines: N, max or add).
           pt-agent game monthly-digest | cleanup-preview | research-funding-compare --funding-percents 25,50,100
           pt-agent mp status | host [PORT] | join IP:PORT | resume [SESSION] | leave | chat TEXT | chat-read   Multiplayer mod (if installed).
+          pt-agent companion start NAME --explicit-user-request [--company N] [--company-type cpu|fabless|foundry] [--windowed] | list | stop NAME
+                                                   Your own headless game copy that joins the session the user hosts (ask first).
 
         First read status.game.state and status.game.next:
           not_running -> launch; main_menu -> game session-new-preview OR game save-list / save-load.
@@ -79,7 +81,7 @@ static async Task<int> Run(string[] args)
     var positional = new List<string>();
     var options = new Dictionary<string, string>();
     var flags = new HashSet<string>();
-    var flagNames = new[] { "hidden", "explicit-user-request", "no-wait", "changes", "compact" };
+    var flagNames = new[] { "hidden", "explicit-user-request", "no-wait", "changes", "compact", "windowed" };
     var compact = args.Contains("--compact");
     var gameOptions = new Dictionary<string, (string Key, string Type)>
     {
@@ -136,7 +138,7 @@ static async Task<int> Run(string[] args)
         ["core-counts"] = ("coreCounts", "string"), ["funding-percents"] = ("fundingPercents", "string"), ["demand-below"] = ("demandBelow", "number"),
         ["rollback-on-failure"] = ("rollbackOnFailure", "boolean"), ["close-designer"] = ("closeDesigner", "boolean")
     };
-    var optionNames = new[] { "value", "scope", "offset", "limit", "endpoint", "timeout", "session", "output", "since", "observe", "json", "file", "save" };
+    var optionNames = new[] { "value", "scope", "offset", "limit", "endpoint", "timeout", "session", "output", "since", "observe", "json", "file", "save", "company", "company-type" };
     for (var i = 0; i < args.Length; i++)
     {
         if (!args[i].StartsWith("--")) { positional.Add(args[i]); continue; }
@@ -157,7 +159,7 @@ static async Task<int> Run(string[] args)
     if (positional.Count == 0) throw new ArgumentException("A command is required. Use help.");
     var command = positional[0];
     var index = 1;
-    if (command is "ui" or "agent" or "game" or "mp")
+    if (command is "ui" or "agent" or "game" or "mp" or "companion")
     {
         if (positional.Count < 2) throw new ArgumentException("A subcommand is required. Use help.");
         command += "." + positional[index++];
@@ -166,6 +168,14 @@ static async Task<int> Run(string[] args)
     if (positional.Count != index && positional.Count > index) throw new ArgumentException("Unexpected positional arguments. Values must use --value.");
     var timeout = options.TryGetValue("timeout", out var timeoutValue) ? int.Parse(timeoutValue) : 30;
     if (timeout < 1 || timeout > 60) throw new ArgumentException("--timeout must be 1..60 seconds.");
+    if ((options.ContainsKey("company") || options.ContainsKey("company-type")) && command is not ("mp.join" or "companion.start")) throw new ArgumentException("--company and --company-type belong to mp join and companion start.");
+    if (flags.Contains("windowed") && command != "companion.start") throw new ArgumentException("--windowed belongs to companion start.");
+    if (command.StartsWith("companion.", StringComparison.Ordinal))
+    {
+        var companion = await Companion.Run(command, target, options, flags, timeout);
+        Console.WriteLine(Output(companion, compact));
+        return companion["ok"]?.GetValue<bool>() == false ? 1 : 0;
+    }
     if (command is "quit" or "game.quit")
     {
         if (target.Length > 0 || flags.Count > 0 || options.Keys.Any(k => k is not ("timeout" or "save"))) throw new ArgumentException("quit takes only --save NAME (optional) and --timeout; it always acts on the local game installation (no --endpoint).");
@@ -221,6 +231,11 @@ static async Task<int> Run(string[] args)
         };
     }
     if (options.TryGetValue("value", out var value)) request["value"] = value;
+    if (command == "mp.join" && (options.ContainsKey("company") || options.ContainsKey("company-type")))
+    {
+        var companyType = options.GetValueOrDefault("company-type", "cpu") switch { "cpu" => 0, "fabless" => 1, "foundry" => 2, _ => throw new ArgumentException("--company-type is cpu, fabless or foundry.") };
+        request["parameters"] = new JsonObject { ["company"] = options.GetValueOrDefault("company", value ?? ""), ["companyType"] = companyType };
+    }
     if (command == "wait-until-resumed") request["value"] = timeout;
     var endpoint = options.GetValueOrDefault("endpoint") ?? GameHost.Endpoint(GameHost.FindRoot());
     if (endpoint == null)
